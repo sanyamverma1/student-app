@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect("mongodb://mongo:27017/studentapp")
+mongoose.connect("mongodb://127.0.0.2:27017/studentapp")
   .then(() => console.log(" MongoDB connected"))
   .catch((err) => console.error(" MongoDB connection error:", err));
 
