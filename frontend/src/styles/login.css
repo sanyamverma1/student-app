@@ -1,0 +1,18 @@
+1:root{
+  --bg:#f5f7fb; --card:#fff; --accent:#0066cc; --danger:#d9534f;
+  --muted:#6b7280; --radius:8px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#111}
+.container{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{width:100%;max-width:420px;padding:28px;border-radius:var(--radius);background:var(--card);box-shadow:0 6px 24px rgba(15,23,42,0.08)}
+h1{margin:0 0 18px 0;font-size:1.25rem}
+.field{display:block;margin-bottom:12px}
+.field span{display:block;font-size:0.85rem;color:var(--muted);margin-bottom:6px}
+input[type="text"],input[type="password"]{width:100%;padding:10px 12px;border:1px solid #e6e9ef;border-radius:6px;font-size:1rem}
+.roleField{display:flex;gap:12px;align-items:center;border:none;padding:0;margin:8px 0 16px 0}
+.primary{width:100%;padding:10px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer}
+.primary:disabled{opacity:0.6;cursor:default}
+.error{color:var(--danger);min-height:20px;margin-bottom:8px;font-size:0.9rem}
+.help{margin-top:12px;color:var(--muted);font-size:0.85rem;text-align:center}
+@media (max-width:420px){.card{padding:20px}}
