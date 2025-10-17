@@ -36,9 +36,8 @@ function StudentForm() {
 
     try {
       const res = await axios.post("http://localhost:5000/api/check-student", {
-        studentId: studentIdInput.trim(),
+         studentId: studentIdInput, // ✅ correct field name
       });
-
       if (res.data.exists) {
         setForm(res.data.student);
         setIsExistingStudent(true);
@@ -71,32 +70,51 @@ function StudentForm() {
   };
 
   // ✅ Submit (register or update)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        ...form,
-        degreeStart: form.degreeStart.toISOString().split("T")[0],
-        degreeEnd: form.degreeEnd.toISOString().split("T")[0],
-      };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    // 🧠 Convert only if value is a Date object
+    const degreeStart =
+      form.degreeStart instanceof Date
+        ? form.degreeStart.toISOString().split("T")[0]
+        : form.degreeStart;
 
-      const res = await axios.post("http://localhost:5000/api/submit", payload);
-      alert(res.data.message);
-      setResponse(res.data.message);
+    const degreeEnd =
+      form.degreeEnd instanceof Date
+        ? form.degreeEnd.toISOString().split("T")[0]
+        : form.degreeEnd;
 
-      // ✅ Reset back to login
-      setForm(emptyForm);
-      setStep("check");
-      setStudentIdInput("");
-      setIsEditable(false);
-      setIsExistingStudent(false);
-      setHasChanges(false);
-    } catch (err) {
-      console.error(err);
-      alert("❌ Failed to submit form");
-      setResponse("❌ Failed to submit form");
-    }
-  };
+    const payload = { ...form, degreeStart, degreeEnd };
+
+    const res = await axios.post("http://localhost:5000/api/submit", payload);
+    alert(res.data.message);
+    setResponse(res.data.message);
+
+    // ✅ Reset to login
+    setForm({
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      studentId: "",
+      education: "",
+      major: "",
+      degreeStart: "",
+      degreeEnd: "",
+      gender: "",
+    });
+    setStep("check");
+    setStudentIdInput("");
+    setIsEditable(false);
+    setIsExistingStudent(false);
+    setHasChanges(false);
+  } catch (err) {
+    console.error("❌ Error during submit:", err);
+    alert("❌ Failed to submit form");
+    setResponse("❌ Failed to submit form");
+  }
+};
+
 
   // ✅ Cancel
   const handleCancel = () => {
