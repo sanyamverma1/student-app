@@ -1,56 +1,59 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('loginForm');
-  if (!form) return;
-  const errorEl = document.getElementById('error');
-  const submitBtn = document.getElementById('submitBtn');
-  const roleNote = document.getElementById('roleNote');
+import React, { useState } from 'react';
+import {useNavigate} from 'react-router-dom';
+import '../styles/login.css';
 
-  const updateRoleNote = () => {
-    const role = form.role?.value || 'user';
-    if (roleNote) roleNote.innerHTML = `Signing in as <strong>${role === 'admin' ? 'Admin' : 'User'}</strong>.`;
-  };
-  Array.from(form.role || []).forEach(r => r.addEventListener('change', updateRoleNote));
-  updateRoleNote();
+function Login() {
+    const [studentID, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
+    const [error, setError] = useState('');
+    const navigate = useNavigate();
 
-  form.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    if (errorEl) errorEl.textContent = '';
-    if (submitBtn) submitBtn.disabled = true;
-
-    const payload = {
-      username: form.username?.value.trim() || '',
-      password: form.password?.value || '',
-      role: form.role?.value || 'user'
-    };
-
-    if (!payload.username || !payload.password) {
-      if (errorEl) errorEl.textContent = 'Username and password are required.';
-      if (submitBtn) submitBtn.disabled = false;
-      return;
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        alert(`StudentID: ${studentID}, Password: ${password}`);
+        // Dummy authentication logic
+        if (studentID === 'admin@gmail.com' && password === 'pass') {
+            setError('');
+            alert('Login successful!');
+            // Redirect to User Input page
+            navigate('/user-input');
+        } else {
+            setError('Invalid email or password');
+            alert('Invalid email or password');
+        }
     }
+    return (
+        <div className="login-container">
+            <h2>Login</h2>
+            <form onSubmit={handleSubmit}>
+                <input
+                    type="studentID"
+                    placeholder="StudentID"
+                    value={studentID}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                />
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                />
+                <label>
+                    <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={e => setRememberMe(e.target.checked)}
+                    />
+                    Remember me
+                </label>
+                <button type="submit">Login</button>
+                {error && <p className="error">{error}</p>}
+            </form>
+        </div>
+    )
+}
 
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(()=>({message:'Login failed'}));
-        if (errorEl) errorEl.textContent = body?.message || 'Invalid credentials.';
-        if (submitBtn) submitBtn.disabled = false;
-        return;
-      }
-
-      const data = await res.json();
-      if (data.token) localStorage.setItem('authToken', data.token);
-      const dest = (payload.role === 'admin') ? '/admin/dashboard' : '/user/dashboard';
-      window.location.href = data.redirect || dest;
-    } catch (err) {
-      if (errorEl) errorEl.textContent = 'Network error. Try again.';
-      if (submitBtn) submitBtn.disabled = false;
-      console.error(err);
-    }
-  });
-});
+export default Login;
