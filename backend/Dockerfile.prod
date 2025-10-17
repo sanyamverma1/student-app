@@ -1,0 +1,29 @@
+# FROM node:18
+# WORKDIR /app
+# COPY package*.json ./
+# RUN npm install
+# COPY . .
+# CMD ["node", "index.js"]
+# EXPOSE 5000
+
+
+# Dockerfile for Backend (Production)
+
+# Use a specific, lightweight version of Node.js
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Use 'npm ci' for faster, more reliable installs in CI/CD.
+# Omit dev dependencies to reduce image size.
+RUN npm ci --omit=dev
+
+COPY . .
+
+# You can add the EXPOSE line here - it's good practice for documentation.
+EXPOSE 5000
+
+# The command to start the server
+CMD ["node", "index.js"]
