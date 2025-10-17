@@ -10,6 +10,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 function App() {
   return (
     <Router>
+<<<<<<< HEAD
       <div className="App">
         <Routes>
           <Route path="/" element={<Login />} />
@@ -17,6 +18,14 @@ function App() {
           <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </div>
+=======
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route path="/form" element={<StudentForm />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/student-form" element={<StudentForm />} />
+      </Routes>
+>>>>>>> 29ef3ea7 (studentform.js set up)
     </Router>
   );
 }
