@@ -31,12 +31,9 @@ function StudentForm() {
 
     try {
       const res = await axios.post("http://localhost:5000/api/check-student", {
-<<<<<<< HEAD
         studentId: studentIdInput,
-=======
-         studentId: studentIdInput, // ✅ correct field name
->>>>>>> 6b48669103cb8d6be78cac5b94539134a5a399a6
       });
+
       if (res.data.exists) {
         const s = res.data.student;
         setForm({
@@ -48,12 +45,7 @@ function StudentForm() {
         setStep("form");
         alert("Welcome back! You can view or edit your details.");
       } else {
-<<<<<<< HEAD
         setForm((prev) => ({ ...prev, studentId: studentIdInput }));
-=======
-        setIsExistingStudent(false);
-        setIsEditable(true);
->>>>>>> 6b48669103cb8d6be78cac5b94539134a5a399a6
         setStep("form");
         alert("New student detected. Please register below.");
       }
@@ -77,7 +69,6 @@ function StudentForm() {
   };
 
   // ✅ Submit (register or update)
-<<<<<<< HEAD
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -92,54 +83,11 @@ function StudentForm() {
           : form.degreeEnd;
 
       const payload = { ...form, degreeStart, degreeEnd };
-=======
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    // 🧠 Convert only if value is a Date object
-    const degreeStart =
-      form.degreeStart instanceof Date
-        ? form.degreeStart.toISOString().split("T")[0]
-        : form.degreeStart;
->>>>>>> 6b48669103cb8d6be78cac5b94539134a5a399a6
 
-    const degreeEnd =
-      form.degreeEnd instanceof Date
-        ? form.degreeEnd.toISOString().split("T")[0]
-        : form.degreeEnd;
+      const res = await axios.post("http://localhost:5000/api/submit", payload);
+      alert(res.data.message);
+      setResponse(res.data.message);
 
-    const payload = { ...form, degreeStart, degreeEnd };
-
-    const res = await axios.post("http://localhost:5000/api/submit", payload);
-    alert(res.data.message);
-    setResponse(res.data.message);
-
-    // ✅ Reset to login
-    setForm({
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      studentId: "",
-      education: "",
-      major: "",
-      degreeStart: "",
-      degreeEnd: "",
-      gender: "",
-    });
-    setStep("check");
-    setStudentIdInput("");
-    setIsEditable(false);
-    setIsExistingStudent(false);
-    setHasChanges(false);
-  } catch (err) {
-    console.error("❌ Error during submit:", err);
-    alert("❌ Failed to submit form");
-    setResponse("❌ Failed to submit form");
-  }
-};
-
-<<<<<<< HEAD
       // ✅ Reset back to ID login after 2 seconds
       setTimeout(() => {
         setForm({
@@ -166,8 +114,6 @@ const handleSubmit = async (e) => {
       setResponse("❌ Failed to submit form");
     }
   };
-=======
->>>>>>> 6b48669103cb8d6be78cac5b94539134a5a399a6
 
   // ✅ Cancel and reset
   const handleCancel = () => {
@@ -177,7 +123,6 @@ const handleSubmit = async (e) => {
     setStudentIdInput("");
     setHasChanges(false);
   };
-
   return (
     <div
       className="min-vh-100 d-flex align-items-center justify-content-center"
