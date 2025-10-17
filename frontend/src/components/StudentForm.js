@@ -46,6 +46,7 @@ function StudentForm() {
         alert("Welcome back! You can view or edit your details.");
       } else {
         setIsExistingStudent(false);
+        setIsEditable(true);
         setStep("form");
         alert("New student — please complete registration.");
       }
