@@ -17,25 +17,25 @@ mongoose
   .catch((err) => console.error(" MongoDB connection error:", err));
 
 //  Check if student exists by ID
+// ✅ Check if student exists by studentId
 app.post("/api/check-student", async (req, res) => {
   try {
-    const { email } = req.body; // frontend sends studentId here
-    const studentId = email?.trim();
+    const { studentId } = req.body; // now reading correctly
 
     if (!studentId) {
       return res.status(400).json({ error: "Missing student ID" });
     }
 
-    const student = await Student.findOne({ studentId });
+    const student = await Student.findOne({ studentId: studentId.trim() });
     if (student) {
-      console.log(` Existing student found: ${studentId}`);
+      console.log(`✅ Existing student found: ${studentId}`);
       return res.status(200).json({ exists: true, student });
     } else {
       console.log(`🆕 New student detected: ${studentId}`);
       return res.status(200).json({ exists: false });
     }
   } catch (err) {
-    console.error(" Error checking student:", err);
+    console.error("❌ Error checking student:", err);
     res.status(500).json({ error: "Server error while checking student" });
   }
 });
