@@ -25,7 +25,6 @@ function StudentForm() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // 🔹 Phase 1: mock submission
     console.log('Submitted:', { ...studentData, ...formData });
     setSuccessMessage('Form submitted successfully!');
     setFormData({ subject: '', message: '' });
