@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import '../styles/studentForm.css';
 
@@ -15,19 +16,27 @@ function StudentForm() {
     message: '',
   });
 
-  const [successMessage, setSuccessMessage] = useState('');
+  const [status, setStatus] = useState({ type: '', message: '' });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    try {
+      const payload = {
+        ...studentData,
+        ...formData,
+      };
 
-    console.log('Submitted:', { ...studentData, ...formData });
-    setSuccessMessage('Form submitted successfully!');
-    setFormData({ subject: '', message: '' });
+      await axios.post('http://localhost:5000/api/submit', payload);
+      setStatus({ type: 'success', message: 'Form submitted successfully!' });
+      setFormData({ subject: '', message: '' });
+    } catch (err) {
+      setStatus({ type: 'error', message: 'Failed to submit form' });
+    }
   };
 
   const handleLogout = () => {
@@ -69,7 +78,11 @@ function StudentForm() {
         <button type="submit">Submit</button>
       </form>
 
-      {successMessage && <p className="success">{successMessage}</p>}
+      {status.message && (
+        <p className={status.type === 'success' ? 'success' : 'error'}>
+          {status.message}
+        </p>
+      )}
 
       <button className="logout-btn" onClick={handleLogout}>
         Logout
