@@ -16,6 +16,17 @@ pipeline {
             steps {
                 echo 'Checking out source code...'
                 checkout scm
+                
+                // Set initial GitHub status to pending
+                script {
+                    updateGitHubCommitStatus(
+                        name: "jenkins/ci",
+                        state: "PENDING", 
+                        context: "jenkins/ci",
+                        description: "Pipeline started...",
+                        targetUrl: "${env.BUILD_URL}"
+                    )
+                }
             }
         }
 
@@ -25,6 +36,18 @@ pipeline {
                     echo 'Preparing Frontend...'
                     sh 'npm install'
                     sh 'npm test'
+                }
+            }
+            post {
+                always {
+                    script {
+                        updateGitHubCommitStatus(
+                            name: "jenkins/frontend-tests",
+                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
+                            context: "jenkins/frontend-tests",
+                            description: "Frontend tests ${currentBuild.result ?: 'passed'}"
+                        )
+                    }
                 }
             }
         }
@@ -40,6 +63,18 @@ pipeline {
                     
                     echo 'Running backend tests...'
                     sh 'npm test'
+                }
+            }
+            post {
+                always {
+                    script {
+                        updateGitHubCommitStatus(
+                            name: "jenkins/backend-tests", 
+                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
+                            context: "jenkins/backend-tests",
+                            description: "Backend tests ${currentBuild.result ?: 'passed'}"
+                        )
+                    }
                 }
             }
         }
@@ -62,17 +97,25 @@ pipeline {
                     sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
                 }
             }
+            post {
+                always {
+                    script {
+                        updateGitHubCommitStatus(
+                            name: "jenkins/docker-build",
+                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
+                            context: "jenkins/docker-build",
+                            description: "Docker images built ${currentBuild.result ?: 'successfully'}"
+                        )
+                    }
+                }
+            }
         }
 
-        // This stage securely logs in and pushes the images.
         stage('Push Docker Images') {
             steps {
-                // This block tells Jenkins: "Find the secret with the nickname 'dockerhub-credentials'".
-                // It injects the real username and password into temporary variables.
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                     
                     echo 'Logging in to Docker Hub...'
-                    // The double quotes are important here to use the variables.
                     sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
                     
                     echo 'Pushing frontend image...'
@@ -84,6 +127,18 @@ pipeline {
                     sh "docker push ${DOCKERHUB_USERNAME}/student-app-backend:latest"
                 }
             }
+            post {
+                always {
+                    script {
+                        updateGitHubCommitStatus(
+                            name: "jenkins/docker-push",
+                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
+                            context: "jenkins/docker-push",
+                            description: "Docker images pushed ${currentBuild.result ?: 'successfully'}"
+                        )
+                    }
+                }
+            }
         }
 
         stage('Deploy to Production') {
@@ -91,7 +146,26 @@ pipeline {
                 echo '--- Deploying application to the server ---'
 
                 withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
+<<<<<<< Updated upstream
                     sh """
+=======
+<<<<<<< HEAD
+                    
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost << EOF
+                            echo 'Connected to the server via SSH.'
+                            cd ~/student-app || exit 1
+                            echo 'Navigated to project directory.'
+                            git pull origin main
+                            echo 'Pulled latest source code.'
+                            docker compose -f docker-compose.prod.yml pull
+                            echo 'Pulled latest Docker images.'
+                            docker compose -f docker-compose.prod.yml up -d
+                            echo 'Deployment complete!'
+                        EOF
+=======
+                    sh """
+>>>>>>> Stashed changes
                         # The '<<-EOF' variation allows the ending EOF to be indented.
                         # This is a cleaner way to write it.
                         ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost <<-EOF
@@ -109,7 +183,23 @@ pipeline {
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
 EOF
+<<<<<<< Updated upstream
+=======
+>>>>>>> 8c48260e3e577a4c00cbf7fbd563116460f1e80c
+>>>>>>> Stashed changes
                     """
+                }
+            }
+            post {
+                always {
+                    script {
+                        updateGitHubCommitStatus(
+                            name: "jenkins/deployment",
+                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
+                            context: "jenkins/deployment",
+                            description: "Deployment ${currentBuild.result ?: 'succeeded'}"
+                        )
+                    }
                 }
             }
         }
@@ -120,6 +210,30 @@ EOF
             echo 'Pipeline finished.'
             // Always good practice to clean up to save disk space.
             sh 'docker image prune -af'
+            
+            // Final GitHub status update
+            script {
+                def finalStatus = currentBuild.result ?: 'SUCCESS'
+                updateGitHubCommitStatus(
+                    name: "jenkins/ci",
+                    state: finalStatus == 'SUCCESS' ? 'SUCCESS' : 'FAILURE',
+                    context: "jenkins/ci",
+                    description: "Pipeline ${finalStatus.toLowerCase()}",
+                    targetUrl: "${env.BUILD_URL}"
+                )
+            }
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+            // Optional: Send success notifications
+        }
+        failure {
+            echo 'Pipeline failed!'
+            // Optional: Send failure notifications
+        }
+        unstable {
+            echo 'Pipeline is unstable!'
+            // Optional: Send unstable notifications
         }
     }
 }
