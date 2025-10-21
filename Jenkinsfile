@@ -2,6 +2,11 @@
 pipeline {
     agent any
 
+    triggers {
+        // This enables GitHub webhook triggers
+        githubPush()
+    }
+
     // Define variables for the entire pipeline
     environment {
         DOCKERHUB_USERNAME = 'francodeploy' 
