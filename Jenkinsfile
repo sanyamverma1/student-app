@@ -17,13 +17,6 @@ pipeline {
             steps {
                 echo 'Checking out source code...'
                 checkout scm
-                script {
-                    setGitHubPullRequestStatus(
-                        state: 'PENDING',
-                        context: 'jenkins/ci',
-                        description: 'Pipeline started...'
-                    )
-                }
             }
         }
 
@@ -33,18 +26,6 @@ pipeline {
                     echo 'Preparing Frontend...'
                     sh 'npm install'
                     sh 'npm test'
-                }
-            }
-            post {
-                always {
-                    script {
-                        updateGitHubCommitStatus(
-                            name: "jenkins/frontend-tests",
-                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
-                            context: "jenkins/frontend-tests",
-                            description: "Frontend tests ${currentBuild.result ?: 'passed'}"
-                        )
-                    }
                 }
             }
         }
@@ -60,18 +41,6 @@ pipeline {
                     
                     echo 'Running backend tests...'
                     sh 'npm test'
-                }
-            }
-            post {
-                always {
-                    script {
-                        updateGitHubCommitStatus(
-                            name: "jenkins/backend-tests", 
-                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
-                            context: "jenkins/backend-tests",
-                            description: "Backend tests ${currentBuild.result ?: 'passed'}"
-                        )
-                    }
                 }
             }
         }
@@ -95,18 +64,6 @@ pipeline {
                     sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
                 }
             }
-            post {
-                always {
-                    script {
-                        updateGitHubCommitStatus(
-                            name: "jenkins/docker-build",
-                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
-                            context: "jenkins/docker-build",
-                            description: "Docker images built ${currentBuild.result ?: 'successfully'}"
-                        )
-                    }
-                }
-            }
         }
 
         // This stage securely logs in and pushes the images.
@@ -127,18 +84,6 @@ pipeline {
                     echo 'Pushing backend image...'
                     sh "docker push ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER}"
                     sh "docker push ${DOCKERHUB_USERNAME}/student-app-backend:latest"
-                }
-            }
-            post {
-                always {
-                    script {
-                        updateGitHubCommitStatus(
-                            name: "jenkins/docker-push",
-                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
-                            context: "jenkins/docker-push",
-                            description: "Docker images pushed ${currentBuild.result ?: 'successfully'}"
-                        )
-                    }
                 }
             }
         }
@@ -181,18 +126,6 @@ EOF
                     """
                 }
             }
-            post {
-                always {
-                    script {
-                        updateGitHubCommitStatus(
-                            name: "jenkins/deployment",
-                            state: currentBuild.result == null ? "SUCCESS" : "FAILURE",
-                            context: "jenkins/deployment",
-                            description: "Deployment ${currentBuild.result ?: 'succeeded'}"
-                        )
-                    }
-                }
-            }
         }
     }
 
@@ -201,24 +134,6 @@ EOF
             echo 'Pipeline finished.'
             // Always good practice to clean up to save disk space.
             sh 'docker image prune -af'
-            script {
-                def finalStatus = currentBuild.result ?: 'SUCCESS'
-                setGitHubPullRequestStatus(
-                    state: finalStatus == 'SUCCESS' ? 'SUCCESS' : 'FAILURE',
-                    context: 'jenkins/ci',
-                    description: "Pipeline ${finalStatus.toLowerCase()}"
-                )
-            }
-        }
-
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed!'
-        }
-        unstable {
-            echo 'Pipeline is unstable!'
         }
     }
 }
