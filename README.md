@@ -85,7 +85,7 @@ npm install
 #### Backend
 ```bash
 cd ../backend
-npm install
+node index.js
 ```
 ### Setup MongoDB
 ```bash
