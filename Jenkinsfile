@@ -6,6 +6,7 @@ pipeline {
         // This enables GitHub webhook triggers
         githubPush()
     }
+
     // Define variables for the entire pipeline
     environment {
         DOCKERHUB_USERNAME = 'francodeploy' 
@@ -140,10 +141,6 @@ pipeline {
                 echo '--- Deploying application to the server ---'
 
                 withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
-<<<<<<< Updated upstream
-                    sh """
-=======
-<<<<<<< HEAD
                     
                     sh """
                         ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost << EOF
@@ -157,30 +154,6 @@ pipeline {
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
                         EOF
-=======
-                    sh """
->>>>>>> Stashed changes
-                        # The '<<-EOF' variation allows the ending EOF to be indented.
-                        # This is a cleaner way to write it.
-                        ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost <<-EOF
-
-                            echo 'Connected to the server via SSH.'
-                            cd ~/student-app || exit 1
-                            echo 'Navigated to project directory.'
-
-                            git pull origin main
-                            echo 'Pulled latest source code.'
-
-                            docker compose -f docker-compose.prod.yml pull
-                            echo 'Pulled latest Docker images.'
-
-                            docker compose -f docker-compose.prod.yml up -d
-                            echo 'Deployment complete!'
-EOF
-<<<<<<< Updated upstream
-=======
->>>>>>> 8c48260e3e577a4c00cbf7fbd563116460f1e80c
->>>>>>> Stashed changes
                     """
                 }
             }
