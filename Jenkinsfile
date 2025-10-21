@@ -48,19 +48,20 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                echo 'Building Docker Images...'
+                echo '--- Building Docker Images ---'
                 
-                // Build the frontend image using the username defined above.
-                // We tag it with the build number (e.g., '1', '2', '3') for a unique version.
+                echo 'Building production frontend image...'
                 dir('frontend') {
-                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
-                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-frontend:latest ."
+                    // Use the -f flag to specify the production Dockerfile
+                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
+                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:latest ."
                 }
 
-                // Build the backend image.
+                echo 'Building production backend image...'
                 dir('backend') {
-                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
-                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
+                    // Use the -f flag here as well
+                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
+                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
                 }
             }
         }
@@ -121,7 +122,6 @@ pipeline {
                             # Stop the old containers and start the new ones
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
-
 EOF
                     """
                 }
