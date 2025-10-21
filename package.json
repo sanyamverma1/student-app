@@ -1,9 +1,9 @@
 {
   "dependencies": {
-<<<<<<< HEAD
+
     "react-router-dom": "^7.9.4"
-=======
+
     "react-datepicker": "^8.8.0"
->>>>>>> 29ef3ea7 (studentform.js set up)
+
   }
 }
