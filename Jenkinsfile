@@ -6,6 +6,7 @@ pipeline {
         // This enables GitHub webhook triggers
         githubPush()
     }
+
     // Define variables for the entire pipeline
     environment {
         DOCKERHUB_USERNAME = 'francodeploy' 
@@ -87,29 +88,42 @@ pipeline {
             }
         }
 
+        // The final stage: Automated Deployment
         stage('Deploy to Production') {
             steps {
                 echo '--- Deploying application to the server ---'
 
+                // Use the withCredentials block to securely access the SSH key.
+                // The 'credentialsId' must match the ID you created in Jenkins.
                 withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
+                    
+                    // The 'sh' step will execute a shell script.
+                    // The triple quotes """ allow us to write a multi-line script.
                     sh """
-                        # The '<<-EOF' variation allows the ending EOF to be indented.
-                        # This is a cleaner way to write it.
-                        ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost <<-EOF
+                        # Use the SSH key to connect to the server as the 'terif' user.
+                        # The -o StrictHostKeyChecking=no option prevents a prompt about new hosts.
+                        ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost << EOF
 
                             echo 'Connected to the server via SSH.'
+
+                            # Navigate to the project directory
+                            # Using '|| exit 1' ensures the script stops if the cd fails.
                             cd ~/student-app || exit 1
                             echo 'Navigated to project directory.'
 
+                            # Pull the latest source code (to get the latest docker-compose.prod.yml)
                             git pull origin main
                             echo 'Pulled latest source code.'
 
+                            # Pull the latest Docker images that were just built
                             docker compose -f docker-compose.prod.yml pull
                             echo 'Pulled latest Docker images.'
 
+                            # Stop the old containers and start the new ones
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
-EOF
+
+                        EOF
                     """
                 }
             }
