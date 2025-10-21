@@ -18,12 +18,10 @@ pipeline {
                 echo 'Checking out source code...'
                 checkout scm
                 script {
-                    updateGitHubCommitStatus(
-                        name: "jenkins/ci",
-                        state: "PENDING", 
-                        context: "jenkins/ci",
-                        description: "Pipeline started...",
-                        targetUrl: "${env.BUILD_URL}"
+                    setGitHubPullRequestStatus(
+                        state: 'PENDING',
+                        context: 'jenkins/ci',
+                        description: 'Pipeline started...'
                     )
                 }
             }
@@ -205,16 +203,14 @@ EOF
             sh 'docker image prune -af'
             script {
                 def finalStatus = currentBuild.result ?: 'SUCCESS'
-                updateGitHubCommitStatus(
-                    name: "jenkins/ci",
+                setGitHubPullRequestStatus(
                     state: finalStatus == 'SUCCESS' ? 'SUCCESS' : 'FAILURE',
-                    context: "jenkins/ci",
-                    description: "Pipeline ${finalStatus.toLowerCase()}",
-                    targetUrl: "${env.BUILD_URL}"
+                    context: 'jenkins/ci',
+                    description: "Pipeline ${finalStatus.toLowerCase()}"
                 )
             }
         }
-        
+
         success {
             echo 'Pipeline completed successfully!'
         }
