@@ -1,45 +1,102 @@
+// This is a Declarative Pipeline, the modern standard for Jenkins.
 pipeline {
-    agent any // This tells Jenkins to run the pipeline on any available agent.
+    // 'agent any' tells Jenkins to run this pipeline on any available machine.
+    agent any
 
+    // The 'stages' block contains the main work of the pipeline.
     stages {
+
+        // Stage 1: Get the source code from GitHub.
         stage('Checkout') {
             steps {
-                // This command automatically checks out code from the GitHub repo
-                // configured in the Jenkins job.
-                echo 'Checking out the code...'
+                echo 'Checking out source code from GitHub...'
+                // 'checkout scm' automatically pulls the code from the repository
+                // configured in the Jenkins job UI.
                 checkout scm
             }
         }
 
-        stage('Build') {
+        // Stage 2: Install dependencies and run tests for the frontend.
+        stage('Build & Test Frontend') {
             steps {
-                // Placeholder
-                echo 'Building the application...'
-                sh 'npm install' // Example: Install dependencies
+                // The 'dir' step is crucial. It changes the directory for the commands inside it.
+                dir('frontend') {
+                    echo '--- Preparing Frontend ---'
+                    echo 'Installing frontend dependencies...'
+                    sh 'npm install'
+                    
+                    echo 'Running frontend tests...'
+                    sh 'npm test'
+                }
             }
         }
 
-        stage('Test') {
+        // Stage 3: Install dependencies and run tests for the backend.
+        stage('Build & Test Backend') {
             steps {
-                // This stage runs automated tests. The build will fail if tests fail.
-                echo 'Running tests...'
-                sh 'npm test' // Example: Run unit tests
+                dir('backend') {
+                    echo '--- Preparing Backend ---'
+                    echo 'Installing backend dependencies...'
+                    // 'npm ci' is faster and better for CI/CD than 'npm install'.
+                    // '--omit=dev' skips development-only packages.
+                    sh 'npm ci --omit=dev'
+                    
+                    echo 'Running backend tests...'
+                    sh 'npm test'
+                }
             }
         }
 
-        stage('Build Docker Image') {
+        // Stage 4: Build production-ready Docker images for both services.
+        stage('Build Docker Images') {
             steps {
-                // This stage uses Docker to build an image of the application.
-                echo 'Building Docker image...'
-                sh 'docker build -t your-docker-repo/student-app .'
+                echo '--- Building Docker Images ---'
+                
+                echo 'Building frontend image...'
+                dir('frontend') {
+                    // Replace 'your-docker-repo' with your Docker Hub username or registry path.
+                    // We tag with the build number for a unique version and 'latest'.
+                    sh 'docker build -t your-docker-repo/student-app-frontend:$BUILD_NUMBER .'
+                    sh 'docker build -t your-docker-repo/student-app-frontend:latest .'
+                }
+
+                echo 'Building backend image...'
+                dir('backend') {
+                    sh 'docker build -t your-docker-repo/student-app-backend:$BUILD_NUMBER .'
+                    sh 'docker build -t your-docker-repo/student-app-backend:latest .'
+                }
             }
         }
 
+        // Stage 5: Placeholder for pushing images to a registry.
+        stage('Push Docker Images') {
+            steps {
+                // This is where you would add commands to push your images.
+                // This requires setting up credentials in Jenkins first.
+                echo 'Skipping push stage for now...'
+                // Example commands:
+                // sh 'docker push your-docker-repo/student-app-frontend:$BUILD_NUMBER'
+                // sh 'docker push your-docker-repo/student-app-backend:$BUILD_NUMBER'
+            }
+        }
+
+        // Stage 6: Placeholder for deploying the application.
         stage('Deploy') {
-            // We will build this stage out later. It will deploy the Docker image.
             steps {
-                echo 'Deploying application...'
+                // This is where you would deploy your application, for example,
+                // by using docker-compose on your production server.
+                echo 'Skipping deploy stage for now...'
             }
+        }
+    }
+
+    // The 'post' block runs after all stages are complete.
+    post {
+        // 'always' will run regardless of whether the pipeline succeeded or failed.
+        always {
+            echo 'Pipeline finished.'
+            // A good place to clean up old Docker images to save disk space.
+            sh 'docker image prune -af'
         }
     }
 }
