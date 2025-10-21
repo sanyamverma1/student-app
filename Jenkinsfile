@@ -56,8 +56,6 @@ pipeline {
             steps {
                 dir('backend') {
                     echo '--- Preparing Backend ---'
-                    // For testing, we NEED the dev dependencies.
-                    // We will run the --omit=dev flag in the Dockerfile instead.
                     echo 'Installing all backend dependencies for testing...'
                     sh 'npm ci'
                     
@@ -79,19 +77,15 @@ pipeline {
             }
         }
 
-
         stage('Build Docker Images') {
             steps {
                 echo 'Building Docker Images...'
                 
-                // Build the frontend image using the username defined above.
-                // We tag it with the build number (e.g., '1', '2', '3') for a unique version.
                 dir('frontend') {
                     sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
                     sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-frontend:latest ."
                 }
 
-                // Build the backend image.
                 dir('backend') {
                     sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
                     sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
@@ -208,7 +202,6 @@ EOF
     post {
         always {
             echo 'Pipeline finished.'
-            // Always good practice to clean up to save disk space.
             sh 'docker image prune -af'
             
             // Final GitHub status update
