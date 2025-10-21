@@ -1,7 +1,7 @@
 // This is a Declarative Pipeline
 pipeline {
     agent any
-    
+
     triggers {
         // This enables GitHub webhook triggers
         githubPush()
@@ -114,7 +114,7 @@ pipeline {
                 }
             }
         }
-
+    }
 
     post {
         always {
