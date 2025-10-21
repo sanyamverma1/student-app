@@ -101,7 +101,7 @@ pipeline {
                     sh """
                         # Use the SSH key to connect to the server as the 'terif' user.
                         # The -o StrictHostKeyChecking=no option prevents a prompt about new hosts.
-                        ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost << 'EOF'
+                        ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost << EOF
 
                             echo 'Connected to the server via SSH.'
 
@@ -122,7 +122,7 @@ pipeline {
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
 
-                        EOF
+EOF
                     """
                 }
             }
