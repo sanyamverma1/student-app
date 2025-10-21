@@ -1,101 +1,92 @@
-// This is a Declarative Pipeline, the modern standard for Jenkins.
+// This is a Declarative Pipeline
 pipeline {
-    // 'agent any' tells Jenkins to run this pipeline on any available machine.
     agent any
 
-    // The 'stages' block contains the main work of the pipeline.
-    stages {
+    // Define variables for the entire pipeline
+    environment {
+        DOCKERHUB_USERNAME = 'lurk8ola@gmail.com' 
+    }
 
-        // Stage 1: Get the source code from GitHub.
+    stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out source code from GitHub...'
-                // 'checkout scm' automatically pulls the code from the repository
-                // configured in the Jenkins job UI.
+                echo 'Checking out source code...'
                 checkout scm
             }
         }
 
-        // Stage 2: Install dependencies and run tests for the frontend.
         stage('Build & Test Frontend') {
             steps {
-                // The 'dir' step is crucial. It changes the directory for the commands inside it.
                 dir('frontend') {
-                    echo '--- Preparing Frontend ---'
-                    echo 'Installing frontend dependencies...'
+                    echo 'Preparing Frontend...'
                     sh 'npm install'
-                    
-                    echo 'Running frontend tests...'
                     sh 'npm test'
                 }
             }
         }
 
-        // Stage 3: Install dependencies and run tests for the backend.
         stage('Build & Test Backend') {
             steps {
                 dir('backend') {
-                    echo '--- Preparing Backend ---'
-                    echo 'Installing backend dependencies...'
-                    // 'npm ci' is faster and better for CI/CD than 'npm install'.
-                    // '--omit=dev' skips development-only packages.
+                    echo 'Preparing Backend...'
                     sh 'npm ci --omit=dev'
-                    
-                    echo 'Running backend tests...'
                     sh 'npm test'
                 }
             }
         }
 
-        // Stage 4: Build production-ready Docker images for both services.
         stage('Build Docker Images') {
             steps {
-                echo '--- Building Docker Images ---'
+                echo 'Building Docker Images...'
                 
-                echo 'Building frontend image...'
+                // Build the frontend image using the username defined above.
+                // We tag it with the build number (e.g., '1', '2', '3') for a unique version.
                 dir('frontend') {
-                    // Replace 'your-docker-repo' with your Docker Hub username or registry path.
-                    // We tag with the build number for a unique version and 'latest'.
-                    sh 'docker build -t your-docker-repo/student-app-frontend:$BUILD_NUMBER .'
-                    sh 'docker build -t your-docker-repo/student-app-frontend:latest .'
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-frontend:latest ."
                 }
 
-                echo 'Building backend image...'
+                // Build the backend image.
                 dir('backend') {
-                    sh 'docker build -t your-docker-repo/student-app-backend:$BUILD_NUMBER .'
-                    sh 'docker build -t your-docker-repo/student-app-backend:latest .'
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
                 }
             }
         }
 
-        // Stage 5: Placeholder for pushing images to a registry.
+        // This stage securely logs in and pushes the images.
         stage('Push Docker Images') {
             steps {
-                // This is where you would add commands to push your images.
-                // This requires setting up credentials in Jenkins first.
-                echo 'Skipping push stage for now...'
-                // Example commands:
-                // sh 'docker push your-docker-repo/student-app-frontend:$BUILD_NUMBER'
-                // sh 'docker push your-docker-repo/student-app-backend:$BUILD_NUMBER'
+                // This block tells Jenkins: "Find the secret with the nickname 'dockerhub-credentials'".
+                // It injects the real username and password into temporary variables.
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    
+                    echo 'Logging in to Docker Hub...'
+                    // The double quotes are important here to use the variables.
+                    sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                    
+                    echo 'Pushing frontend image...'
+                    sh "docker push ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER}"
+                    sh "docker push ${DOCKERHUB_USERNAME}/student-app-frontend:latest"
+                    
+                    echo 'Pushing backend image...'
+                    sh "docker push ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER}"
+                    sh "docker push ${DOCKERHUB_USERNAME}/student-app-backend:latest"
+                }
             }
         }
 
-        // Stage 6: Placeholder for deploying the application.
         stage('Deploy') {
             steps {
-                // This is where you would deploy your application, for example,
-                // by using docker-compose on your production server.
                 echo 'Skipping deploy stage for now...'
             }
         }
     }
 
-    // The 'post' block runs after all stages are complete.
     post {
-        // 'always' will run regardless of whether the pipeline succeeded or failed.
         always {
             echo 'Pipeline finished.'
-            // A good place to clean up old Docker images to save disk space.
+            // Always good practice to clean up to save disk space.
             sh 'docker image prune -af'
         }
     }
