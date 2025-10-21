@@ -122,8 +122,7 @@ pipeline {
                             # Stop the old containers and start the new ones
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
-
-                        EOF
+EOF
                     """
                 }
             }
