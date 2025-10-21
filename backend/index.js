@@ -40,6 +40,12 @@ app.post("/api/check-student", async (req, res) => {
   }
 });
 
+// Health Check Endpoint
+app.get("/api/health", (req, res) => {
+  // You can add database connection checks here in the future
+  res.status(200).json({ status: "ok" });
+});
+
 //  Submit (register or update student)
 app.post("/api/submit", async (req, res) => {
   try {
