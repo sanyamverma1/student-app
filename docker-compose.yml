@@ -1,16 +1,40 @@
-version: '3'
+# docker-compose.yml (FOR DEVELOPMENT ONLY)
+
+version: '3.8'
+
 services:
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
+    volumes:
+      # Mount the source code for hot-reloading
+      - ./frontend:/app
+      # Exclude node_modules from the mount
+      - /app/node_modules
+
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
     ports:
       - "5000:5000"
     depends_on:
       - mongo
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/studentapp
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
   mongo:
-    image: mongo
+    image: mongo:latest
     ports:
       - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

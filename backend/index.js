@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -7,14 +8,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-//  MongoDB connection
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/studentapp";
+
 mongoose
-  .connect("mongodb://127.0.0.1:27017/studentapp", {
+  .connect(MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log(" MongoDB connected"))
-  .catch((err) => console.error(" MongoDB connection error:", err));
+  .then(() => console.log("MongoDB connected successfully"))
+  .catch((err) => console.error("MongoDB connection error:", err
+  
+  ));
 
 //  Check if student exists by ID
 app.post("/api/check-student", async (req, res) => {
@@ -38,6 +42,12 @@ app.post("/api/check-student", async (req, res) => {
     console.error(" Error checking student:", err);
     res.status(500).json({ error: "Server error while checking student" });
   }
+});
+
+// Health Check Endpoint
+app.get("/api/health", (req, res) => {
+  // You can add database connection checks here in the future
+  res.status(200).json({ status: "ok" });
 });
 
 //  Submit (register or update student)
