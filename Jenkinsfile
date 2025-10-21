@@ -4,7 +4,7 @@ pipeline {
 
     // Define variables for the entire pipeline
     environment {
-        DOCKERHUB_USERNAME = 'lurk8ola@gmail.com' 
+        DOCKERHUB_USERNAME = 'francodeploy' 
     }
 
     stages {
