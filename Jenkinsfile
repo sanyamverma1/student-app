@@ -90,7 +90,7 @@ pipeline {
             steps {
                 echo '--- Deploying application to the server ---'
 
-                withCredentials([sshUserPrivateKey(credentialsId: 'nag3-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
                     sh """
                         # The '<<-EOF' variation allows the ending EOF to be indented.
                         # This is a cleaner way to write it.
