@@ -28,12 +28,18 @@ pipeline {
         stage('Build & Test Backend') {
             steps {
                 dir('backend') {
-                    echo 'Preparing Backend...'
-                    sh 'npm ci --omit=dev'
+                    echo '--- Preparing Backend ---'
+                    // For testing, we NEED the dev dependencies.
+                    // We will run the --omit=dev flag in the Dockerfile instead.
+                    echo 'Installing all backend dependencies for testing...'
+                    sh 'npm ci'
+                    
+                    echo 'Running backend tests...'
                     sh 'npm test'
                 }
             }
         }
+
 
         stage('Build Docker Images') {
             steps {
