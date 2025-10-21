@@ -45,23 +45,21 @@ pipeline {
             }
         }
 
-
         stage('Build Docker Images') {
             steps {
-                echo '--- Building Docker Images ---'
+                echo 'Building Docker Images...'
                 
-                echo 'Building production frontend image...'
+                // Build the frontend image using the username defined above.
+                // We tag it with the build number (e.g., '1', '2', '3') for a unique version.
                 dir('frontend') {
-                    // Use the -f flag to specify the production Dockerfile
-                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
-                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:latest ."
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-frontend:latest ."
                 }
 
-                echo 'Building production backend image...'
+                // Build the backend image.
                 dir('backend') {
-                    // Use the -f flag here as well
-                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
-                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
+                    sh "docker build -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
                 }
             }
         }
@@ -102,7 +100,7 @@ pipeline {
                     sh """
                         # Use the SSH key to connect to the server as the 'terif' user.
                         # The -o StrictHostKeyChecking=no option prevents a prompt about new hosts.
-                        ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost << EOF
+                        ssh -o StrictHostKeyChecking=no -i \${SSH_KEY} terif@localhost << 'EOF'
 
                             echo 'Connected to the server via SSH.'
 
@@ -122,6 +120,7 @@ pipeline {
                             # Stop the old containers and start the new ones
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
+
 EOF
                     """
                 }
