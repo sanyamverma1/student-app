@@ -12,7 +12,7 @@ function AdminDashboard() {
   // Fetch students from backend
   const fetchStudents = async () => {
     try {
-      const res = await apiClient.post("/api/admin/login", { email, password });
+      const res = await apiClient.get("/api/admin/students");
       setStudents(res.data);
       setLoading(false);
     } catch (err) {
