@@ -19,9 +19,10 @@ function Login() {
         return;
       }
 
-      if (email === "user@student.edu" && password === "123456") {
+      if (email === "123@student.edu" && password === "123456") {
         alert("Student login successful!");
-        navigate("/student-form");
+        const studentId = email.split("@")[0];
+        navigate("/student-form", { state: { studentId } });
         return;
       }
     }

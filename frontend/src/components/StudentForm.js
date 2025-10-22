@@ -1,12 +1,15 @@
 import React, { useState } from "react";
+import { useLocation } from "react-router-dom";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 function StudentForm() {
+  const location = useLocation();
+  const studentIdFromLogin = location.state?.studentId || "";
+  const [studentIdInput, setStudentIdInput] = useState(studentIdFromLogin);
   const [step, setStep] = useState("check");
-  const [studentIdInput, setStudentIdInput] = useState("");
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -27,12 +30,13 @@ function StudentForm() {
 
   // ✅ Step 1: Check student ID
   const handleCheckStudent = async () => {
+    console.log("DEBUG studentIdInput:", studentIdInput); 
     if (!studentIdInput.trim())
       return alert("Please enter your student ID to continue");
 
     try {
       const res = await axios.post("http://localhost:5000/api/check-student", {
-        email: studentIdInput, // backend uses email field, but we’re treating ID as unique login
+        studentId: studentIdInput, // backend uses email field, but we’re treating ID as unique login
       });
 
       if (res.data.exists) {
@@ -114,17 +118,11 @@ function StudentForm() {
           className="card p-5 shadow-lg text-center"
           style={{ maxWidth: "500px", width: "100%", borderRadius: "20px" }}
         >
-          <h4 className="text-primary mb-3">🎓 Student Login / Registration</h4>
-          <input
-            type="text"
-            className="form-control mb-3"
-            placeholder="Enter your Student ID"
-            value={studentIdInput}
-            onChange={(e) => setStudentIdInput(e.target.value)}
-          />
+          <h4 className="text-primary mb-3">🎓 Confirm Your Student ID</h4>
+          <p className="fs-5 fw-bold text-dark mb-3">{studentIdInput}</p>
           <button className="btn btn-primary w-100" onClick={handleCheckStudent}>
             Continue
-          </button>
+          </button> 
         </div>
       ) : (
         <div

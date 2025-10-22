@@ -19,9 +19,8 @@ mongoose
 //  Check if student exists by ID
 app.post("/api/check-student", async (req, res) => {
   try {
-    const { email } = req.body; // frontend sends studentId here
-    const studentId = email?.trim();
-
+    const { studentId } = req.body; // frontend sends studentId here
+    
     if (!studentId) {
       return res.status(400).json({ error: "Missing student ID" });
     }
