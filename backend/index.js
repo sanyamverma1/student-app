@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const Student = require("./models/Student");
+const seedData = require("./data/seed.json");
 
 const app = express();
 app.use(cors());
@@ -17,8 +18,16 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+  .then(async() => {
+    console.log(" MongoDB connected")
+    
+    await Student.deleteMany({});
+    await Student.insertMany(seedData);
+    console.log("Database reset and default students imported!");
+
+  })
+
+  .catch((err) => console.error(" MongoDB connection error:", err));
 
 /* ----------------------------------------------------------
    🧠 ADMIN LOGIN
@@ -40,6 +49,40 @@ app.post("/api/admin/login", async (req, res) => {
   } catch (err) {
     console.error("❌ Error during admin login:", err);
     res.status(500).json({ message: "Server error during admin login" });
+  }
+});
+// Login route
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Missing email or password" });
+    }
+
+    const studentId = email.split("@")[0];
+    console.log(`Login attempt: ${email} => studentId: ${studentId}`);
+
+    const student = await Student.findOne({ studentId });
+
+    if (!student) {
+      console.log(`No student found with ID: ${studentId}`);
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    if (student.password !== password) {
+      console.log(`Incorrect password for: ${email}`);
+      return res.status(401).json({ message: "Invalid password" });
+    }
+
+    console.log(`Login successful for: ${email}`);
+    return res.status(200).json({
+      message: "Login successful!",
+      student,
+    });
+  } catch (err) {
+    console.error("Error logging in:", err);
+    res.status(500).json({ message: "Server error during login" });
   }
 });
 
@@ -214,5 +257,5 @@ app.delete("/api/admin/students/:id", async (req, res) => {
 -------------------------------------------------------------*/
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
+  console.log(`🚀 Server running on ${process.env.MONGODB_URI}`)
 );

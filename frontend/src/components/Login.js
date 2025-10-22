@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import "../styles/login.css";
+import apiClient from "../api";
+
 
 function Login() {
   const [role, setRole] = useState("student");
@@ -14,15 +15,36 @@ function Login() {
     e.preventDefault();
     setError("");
 
-    if (!email.trim() || !password.trim()) {
-      setError("Please enter both email and password.");
+    if (role === "student") {
+      if (!email.endsWith("@student.edu")) {
+        setError("Please use your student email address");
+        return;
+      }
+
+      try {
+        const res = await apiClient.post("/api/login", {
+          email,
+          password,
+        });
+
+        if (res.status === 200) {
+          alert("Student login successful!");
+          const studentId = res.data.student.studentId;
+          navigate("/student-form", { state: { studentId } });
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        setError(
+          err.response?.data?.message || "Login failed. Please try again."
+        );
+      }
       return;
     }
 
     try {
       // 🧩 Admin login
       if (role === "admin") {
-        const res = await axios.post("http://localhost:5000/api/admin/login", {
+        const res = await apiClient.post("/api/admin/login", {
           email,
           password,
         });
@@ -37,7 +59,7 @@ function Login() {
         return;
       }
 
-      const res = await axios.post("http://localhost:5000/api/login", {
+      const res = await apiClient.post("/api/login", {
         email,
         password,
       });
@@ -68,7 +90,6 @@ function Login() {
   return (
     <div className="login-container">
       <h2>Login</h2>
-
       <form onSubmit={handleSubmit}>
         {/* Role selector */}
         <div className="mb-3">
