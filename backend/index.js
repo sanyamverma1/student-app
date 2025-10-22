@@ -13,7 +13,7 @@ app.use(express.json());
    🧩 MongoDB connection
 -------------------------------------------------------------*/
 mongoose
-  .connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/studentapp", {
+  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/studentapp", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
