@@ -168,7 +168,7 @@ pipeline {
             }
         }
 
-         // FIXED: Security Approval Gate with Auto-approval Timer
+         // FIXED: Security Approval Gate using standard Jenkins steps
          stage('Security Approval') {
              when {
                  expression { env.SECURITY_REVIEW_REQUIRED == 'true' }
@@ -177,7 +177,6 @@ pipeline {
                  script {
                      echo '=== SECURITY APPROVAL REQUIRED ==='
                      echo "Build: ${env.BUILD_NUMBER}"
-                     // DYNAMIC: Use actual vulnerability counts
                      echo "Frontend: ${env.FRONTEND_VULNERABILITIES}"
                      echo "Backend: ${env.BACKEND_VULNERABILITIES}" 
                      echo "Secrets: ${env.SECRETS_STATUS}"

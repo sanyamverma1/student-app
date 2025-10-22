@@ -16,6 +16,7 @@ function App() {
         <Route path="/form" element={<StudentForm />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/student-form" element={<StudentForm />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
       </Routes>
       </div>
     </Router>
