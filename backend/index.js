@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const Student = require("./models/Student");
+const seedData = require("./data/seed.json");
 
 const app = express();
 app.use(cors());
@@ -13,7 +14,18 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log(" MongoDB connected"))
+  .then(async() => {
+    console.log(" MongoDB connected")
+    
+    const count = await Student.countDocuments();
+    if (count === 0) {
+      await Student.insertMany(seedData);
+      console.log("Default students imported automatically!");
+    } else {
+      console.log(`Database already has ${count} students, skipping seeding.`);
+    }
+  })
+
   .catch((err) => console.error(" MongoDB connection error:", err));
 
 // ✅ Check if student exists
@@ -37,6 +49,40 @@ app.post("/api/check-student", async (req, res) => {
   } catch (err) {
     console.error("❌ Error checking student:", err);
     res.status(500).json({ error: "Server error while checking student" });
+  }
+});
+// Login route
+app.post("/api/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const studentId = email.split("@")[0]; 
+    console.log("Login attempt:", email, "=> studentId:", studentId);
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Missing email or password" });
+    }
+
+    const student = await Student.findOne({ email });
+
+    if (!student) {
+      console.log(`No student found with email: ${email}`);
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    if (student.password !== password) {
+      console.log(`Incorrect password for: ${email}`);
+      return res.status(401).json({ message: "Invalid password" });
+    }
+
+    console.log(`Login successful for: ${email}`);
+    return res.status(200).json({
+      message: "Login successful!",
+      student,
+    });
+  } catch (err) {
+    console.error("Error logging in:", err);
+    res.status(500).json({ message: "Server error during login" });
   }
 });
 

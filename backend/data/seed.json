@@ -1,0 +1,26 @@
+[
+  {
+    "firstName": "Ai Vi",
+    "lastName": "Tran",
+    "email": "104209393@student.edu",
+    "password": "123456",
+    "studentId": "104209393",
+    "education": "Bachelor",
+    "major": "Data Science",
+    "degreeStart": "2021-01-01",
+    "degreeEnd": "2025-12-01",
+    "gender": "Female"
+  },
+  {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "103109394@student.edu",
+    "password": "123456",
+    "studentId": "103109394",
+    "education": "Bachelor",
+    "major": "Software Engineering",
+    "degreeStart": "2022-01-01",
+    "degreeEnd": "2026-12-01",
+    "gender": "Male"
+  }
+]

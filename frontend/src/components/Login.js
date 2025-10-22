@@ -1,3 +1,4 @@
+import axios from "axios";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
@@ -10,8 +11,9 @@ function Login() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
     if (role === "student") {
       if (!email.endsWith("@student.edu")) {
@@ -19,12 +21,24 @@ function Login() {
         return;
       }
 
-      if (email === "123@student.edu" && password === "123456") {
-        alert("Student login successful!");
-        const studentId = email.split("@")[0];
-        navigate("/student-form", { state: { studentId } });
-        return;
+      try {
+        const res = await axios.post("http://localhost:5000/api/login", {
+          email,
+          password,
+        });
+
+        if (res.status === 200) {
+          alert("Student login successful!");
+          const studentId = res.data.student.studentId;
+          navigate("/student-form", { state: { studentId } });
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        setError(
+          err.response?.data?.message || "Login failed. Please try again."
+        );
       }
+      return;
     }
 
     if (role === "admin") {
@@ -41,7 +55,6 @@ function Login() {
   return (
     <div className="login-container">
       <h2>Login</h2>
-
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <select
