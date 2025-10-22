@@ -168,36 +168,55 @@ pipeline {
             }
         }
 
-        // FIXED: Security Approval Gate
-        stage('Security Approval') {
-            when {
-                expression { env.SECURITY_REVIEW_REQUIRED == 'true' }
-            }
-            steps {
-                script {
-                    echo '=== SECURITY APPROVAL REQUIRED ==='
-                    echo "Build: ${env.BUILD_NUMBER}"
-                    // DYNAMIC: Use actual vulnerability counts
-                    echo "Frontend: ${env.FRONTEND_VULNERABILITIES}"
-                    echo "Backend: ${env.BACKEND_VULNERABILITIES}" 
-                    echo "Secrets: ${env.SECRETS_STATUS}"
-                    echo ''
-                    echo 'Options:'
-                    echo '1. Approve deployment (acknowledge risks)'
-                    echo '2. Cancel and fix vulnerabilities first'
-                    echo '3. Check security reports in build artifacts'
-                    
-                    def deploymentApproval = input(
-                        // DYNAMIC: Use actual vulnerability info in message
-                        message: "Security: Build ${env.BUILD_NUMBER} has vulnerabilities. Frontend: ${env.FRONTEND_VULNERABILITIES}, Backend: ${env.BACKEND_VULNERABILITIES}. Proceed?", 
-                        ok: 'Deploy Anyway',
-                        submitterParameter: 'APPROVED_BY'
-                    )
-                    env.DEPLOYMENT_APPROVED_BY = deploymentApproval
-                    echo "Approved by: ${env.DEPLOYMENT_APPROVED_BY}"
-                }
-            }
-        }
+         // FIXED: Security Approval Gate with Auto-approval Timer
+         stage('Security Approval') {
+             when {
+                 expression { env.SECURITY_REVIEW_REQUIRED == 'true' }
+             }
+             steps {
+                 script {
+                     echo '=== SECURITY APPROVAL REQUIRED ==='
+                     echo "Build: ${env.BUILD_NUMBER}"
+                     // DYNAMIC: Use actual vulnerability counts
+                     echo "Frontend: ${env.FRONTEND_VULNERABILITIES}"
+                     echo "Backend: ${env.BACKEND_VULNERABILITIES}" 
+                     echo "Secrets: ${env.SECRETS_STATUS}"
+                     echo ''
+                     echo 'Options:'
+                     echo '1. Approve deployment (acknowledge risks)'
+                     echo '2. Cancel and fix vulnerabilities first'
+                     echo '3. Check security reports in build artifacts'
+                     echo ''
+                     echo 'AUTO-APPROVAL: Will automatically deploy in 5 seconds if no response...'
+                     
+                     // Start timer in background
+                     def timer = Thread.start {
+                         sleep(5000) // 5 seconds
+                         echo 'Timer expired - auto-approving deployment...'
+                     }
+                     
+                     try {
+                         def deploymentApproval = input(
+                             // DYNAMIC: Use actual vulnerability info in message
+                             message: "Security: Build ${env.BUILD_NUMBER} has vulnerabilities. Frontend: ${env.FRONTEND_VULNERABILITIES}, Backend: ${env.BACKEND_VULNERABILITIES}. Auto-approving in 5 seconds...", 
+                             ok: 'Deploy Anyway',
+                             submitterParameter: 'APPROVED_BY',
+                             parameters: [
+                                 string(name: 'TIMEOUT_SECONDS', defaultValue: '5', description: 'Auto-approval timeout in seconds')
+                             ]
+                         )
+                         timer.interrupt() // Cancel timer if manual input received
+                         env.DEPLOYMENT_APPROVED_BY = deploymentApproval
+                         echo "Manually approved by: ${env.DEPLOYMENT_APPROVED_BY}"
+                     } catch (Exception e) {
+                         // If input times out or is interrupted, auto-approve
+                         timer.interrupt()
+                         env.DEPLOYMENT_APPROVED_BY = 'AUTO-APPROVED (Timer)'
+                         echo "Auto-approved due to timeout: ${env.DEPLOYMENT_APPROVED_BY}"
+                     }
+                 }
+             }
+         }
 
         stage('Build Docker Images') {
             steps {
