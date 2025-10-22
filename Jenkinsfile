@@ -189,30 +189,21 @@ pipeline {
                      echo ''
                      echo 'AUTO-APPROVAL: Will automatically deploy in 5 seconds if no response...'
                      
-                     // Start timer in background
-                     def timer = Thread.start {
-                         sleep(5000) // 5 seconds
-                         echo 'Timer expired - auto-approving deployment...'
-                     }
-                     
-                     try {
-                         def deploymentApproval = input(
-                             // DYNAMIC: Use actual vulnerability info in message
-                             message: "Security: Build ${env.BUILD_NUMBER} has vulnerabilities. Frontend: ${env.FRONTEND_VULNERABILITIES}, Backend: ${env.BACKEND_VULNERABILITIES}. Auto-approving in 5 seconds...", 
-                             ok: 'Deploy Anyway',
-                             submitterParameter: 'APPROVED_BY',
-                             parameters: [
-                                 string(name: 'TIMEOUT_SECONDS', defaultValue: '5', description: 'Auto-approval timeout in seconds')
-                             ]
-                         )
-                         timer.interrupt() // Cancel timer if manual input received
-                         env.DEPLOYMENT_APPROVED_BY = deploymentApproval
-                         echo "Manually approved by: ${env.DEPLOYMENT_APPROVED_BY}"
-                     } catch (Exception e) {
-                         // If input times out or is interrupted, auto-approve
-                         timer.interrupt()
-                         env.DEPLOYMENT_APPROVED_BY = 'AUTO-APPROVED (Timer)'
-                         echo "Auto-approved due to timeout: ${env.DEPLOYMENT_APPROVED_BY}"
+                     // Use timeout wrapper for auto-approval
+                     timeout(time: 5, unit: 'SECONDS') {
+                         try {
+                             def deploymentApproval = input(
+                                 message: "Security: Build ${env.BUILD_NUMBER} has vulnerabilities. Frontend: ${env.FRONTEND_VULNERABILITIES}, Backend: ${env.BACKEND_VULNERABILITIES}. Auto-approving in 5 seconds...", 
+                                 ok: 'Deploy Anyway',
+                                 submitterParameter: 'APPROVED_BY'
+                             )
+                             env.DEPLOYMENT_APPROVED_BY = deploymentApproval
+                             echo "Manually approved by: ${env.DEPLOYMENT_APPROVED_BY}"
+                         } catch (Exception e) {
+                             // If timeout occurs, auto-approve
+                             env.DEPLOYMENT_APPROVED_BY = 'AUTO-APPROVED (5s Timer)'
+                             echo "Auto-approved due to 5-second timeout: ${env.DEPLOYMENT_APPROVED_BY}"
+                         }
                      }
                  }
              }
