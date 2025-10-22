@@ -4,39 +4,43 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const Student = require("./models/Student");
+const seedData = require("./data/seed.json");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 /* ----------------------------------------------------------
-   🧩 MongoDB connection
+   🧩 MongoDB connection & Conditional Seeding
 -------------------------------------------------------------*/
 mongoose
-  .connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/studentapp", {
+  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/studentapp", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(async () => {
+    console.log("✅ MongoDB connected");
+    await Student.deleteMany({});
+    await Student.insertMany(seedData);
+    console.log("Database reset and default students imported!");
+  })
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 /* ----------------------------------------------------------
    🧠 ADMIN LOGIN
 -------------------------------------------------------------*/
 const ADMIN_EMAIL = "admin@swin.edu.au";
-const ADMIN_PASSWORD = "admin123"; // Can be hashed later
+const ADMIN_PASSWORD = "admin123";
 
 app.post("/api/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       console.log("✅ Admin logged in");
       return res.status(200).json({ message: "Admin login successful" });
-    } else {
-      console.log("❌ Invalid admin credentials");
-      return res.status(401).json({ message: "Invalid admin credentials" });
     }
+    console.log("❌ Invalid admin credentials");
+    return res.status(401).json({ message: "Invalid admin credentials" });
   } catch (err) {
     console.error("❌ Error during admin login:", err);
     res.status(500).json({ message: "Server error during admin login" });
@@ -44,71 +48,48 @@ app.post("/api/admin/login", async (req, res) => {
 });
 
 /* ----------------------------------------------------------
-   🧠 LOGIN OR REGISTER NEW STUDENT (email + password)
+   🧠 STUDENT LOGIN / REGISTER
 -------------------------------------------------------------*/
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password)
       return res.status(400).json({ message: "Email and password required" });
 
-    // ✅ Validate email domain
     if (!email.toLowerCase().endsWith("@student.swin.edu.au")) {
-      return res.status(400).json({
-        message:
-          "Only Swinburne student emails are allowed (@student.swin.edu.au)",
-      });
+      return res
+        .status(400)
+        .json({ message: "Only Swinburne student emails are allowed." });
     }
 
-    // 🔍 Check if student exists
     let student = await Student.findOne({ email });
 
     if (!student) {
-      // 🆕 New user → hash their password and save
       const hashed = await bcrypt.hash(password, 10);
-      const newStudent = new Student({ email, password: hashed });
-      await newStudent.save();
-
-      console.log(`🆕 New student registered: ${email}`);
-      return res.status(201).json({
-        message: "🆕 New student detected — continue registration",
-        existing: false,
+      const newStudent = new Student({
         email,
+        password: hashed,
+        studentId: email.split("@")[0],
       });
+      await newStudent.save();
+      console.log(`🆕 New student registered: ${email}`);
+      return res
+        .status(201)
+        .json({ message: "New student detected — continue registration" });
     }
 
-    // ✅ Existing user → verify password
-    let isMatch = false;
-
-    try {
-      isMatch = await bcrypt.compare(password, student.password);
-    } catch {
-      console.warn("⚠️ bcrypt compare failed, using fallback check");
-    }
-
-    // Fallback if old record was plain-text
-    if (!isMatch && password === student.password) {
-      isMatch = true;
-      const newHash = await bcrypt.hash(password, 10);
-      student.password = newHash;
-      await student.save();
-      console.log(`🔒 Auto-rehashed plain password for ${email}`);
-    }
+    const isMatch =
+      (await bcrypt.compare(password, student.password)) ||
+      password === student.password;
 
     if (!isMatch) {
-      console.log(`❌ Invalid password for ${email}`);
-      return res
-        .status(401)
-        .json({ message: "Invalid password", existing: true });
+      return res.status(401).json({ message: "Invalid password" });
     }
 
     console.log(`✅ Existing student logged in: ${email}`);
-    return res.status(200).json({
-      message: "✅ Welcome back!",
-      existing: true,
-      student,
-    });
+    return res
+      .status(200)
+      .json({ message: "Welcome back!", student, existing: true });
   } catch (err) {
     console.error("❌ Error during login:", err);
     res.status(500).json({ message: "Server error during login" });
@@ -116,66 +97,36 @@ app.post("/api/login", async (req, res) => {
 });
 
 /* ----------------------------------------------------------
-   🧠 SUBMIT / UPDATE STUDENT DETAILS
+   🧠 STUDENT SUBMIT / UPDATE DETAILS
 -------------------------------------------------------------*/
 app.post("/api/submit", async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) {
+    if (!email)
       return res.status(400).json({ message: "Missing email in request" });
-    }
 
     const payload = { ...req.body };
-    delete payload._id;
-    delete payload.__v;
+    if (!payload.studentId) payload.studentId = email.split("@")[0];
 
-    const existingStudent = await Student.findOne({ email });
+    const updated = await Student.findOneAndUpdate(
+      { email },
+      { $set: payload },
+      { new: true, upsert: true }
+    );
 
-    if (existingStudent) {
-      // ✅ Update existing student details
-      // Prevent accidental re-hashing if password hasn’t changed
-      const existingStudent = await Student.findOne({ email });
-      if (payload.password && payload.password !== existingStudent.password) {
-        // If the password is new and not already hashed
-        if (!payload.password.startsWith("$2b$")) {
-          payload.password = await bcrypt.hash(payload.password, 10);
-        }
-      }
-
-      const updatedStudent = await Student.findOneAndUpdate(
-        { email },
-        { $set: payload },
-        { new: true }
-      );
-      console.log(`🔁 Updated student ${email}`);
-      return res.status(200).json({
-        message: "✅ Student details updated successfully!",
-        student: updatedStudent,
-      });
-    }
-
-    // 🆕 Create new student record
-    const newStudent = new Student(payload);
-    await newStudent.save();
-    console.log(`🆕 New student registered: ${email}`);
-    return res.status(201).json({
-      message: "✅ Student registered successfully!",
-      student: newStudent,
+    res.status(200).json({
+      message: "✅ Student details saved successfully!",
+      student: updated,
     });
   } catch (err) {
     console.error("❌ Error in /api/submit:", err);
-    return res.status(500).json({
-      message: "❌ Failed to submit form",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Failed to submit form" });
   }
 });
 
 /* ----------------------------------------------------------
    🧠 ADMIN: VIEW, EDIT, DELETE STUDENTS
 -------------------------------------------------------------*/
-
-// GET all students
 app.get("/api/admin/students", async (req, res) => {
   try {
     const students = await Student.find();
@@ -185,7 +136,6 @@ app.get("/api/admin/students", async (req, res) => {
   }
 });
 
-// UPDATE student
 app.put("/api/admin/students/:id", async (req, res) => {
   try {
     const updated = await Student.findByIdAndUpdate(req.params.id, req.body, {
@@ -194,17 +144,16 @@ app.put("/api/admin/students/:id", async (req, res) => {
     res
       .status(200)
       .json({ message: "✅ Student updated successfully", updated });
-  } catch (err) {
+  } catch {
     res.status(500).json({ message: "❌ Failed to update student" });
   }
 });
 
-// DELETE student
 app.delete("/api/admin/students/:id", async (req, res) => {
   try {
     await Student.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: "🗑️ Student deleted successfully" });
-  } catch (err) {
+  } catch {
     res.status(500).json({ message: "❌ Failed to delete student" });
   }
 });
