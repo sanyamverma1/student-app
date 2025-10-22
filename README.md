@@ -87,10 +87,6 @@ npm install
 cd ../backend
 node index.js
 ```
-### Setup MongoDB
-```bash
-
-```
 
 ### Start the Servers
 #### Run the Backend

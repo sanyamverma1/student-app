@@ -42,6 +42,8 @@ function StudentForm() {
         alert("Welcome back! View or edit your details below.");
       } else {
         setForm((prev) => ({ ...prev, studentId: studentIdInput }));
+        setIsExistingStudent(false);
+        setIsEditable(true);
         setStep("form");
         alert("New student detected. Please register below.");
       }
