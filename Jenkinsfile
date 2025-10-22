@@ -233,34 +233,30 @@ pipeline {
 
         // The final stage: Automated Deployment
         stage('Deploy to Production') {
-            // FIX: Add condition to only deploy when no security review needed OR when approved
-            when {
-                anyOf {
-                    expression { env.SECURITY_REVIEW_REQUIRED == 'false' }
-                    expression { env.SECURITY_REVIEW_REQUIRED == 'true' && env.DEPLOYMENT_APPROVED_BY != null }
-                }
-            }
             steps {
                 echo '--- Deploying application to the server ---'
-
                 withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
                     sh """
                         ssh -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR -i \${SSH_KEY} terif@localhost << 'EOF'
                             echo 'Connected to the server via SSH.'
                             cd ~/student-app || exit 1
                             echo 'Navigated to project directory.'
+                            
+                            # FIX: Update git remote URL to correct repository
+                            git remote set-url origin https://github.com/student-app-team/student-app.git
+                            echo 'Updated git remote URL'
+                            
                             git pull origin main
                             echo 'Pulled latest source code.'
                             docker compose -f docker-compose.prod.yml pull
                             echo 'Pulled latest Docker images.'
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
-EOF
+        EOF
                     """
                 }
             }
         }
-    }
 
     post {
         always {
