@@ -3,13 +3,14 @@ pipeline {
     agent any
 
     triggers {
-        // This enables GitHub webhook triggers
         githubPush()
     }
 
-    // Define variables for the entire pipeline
     environment {
-        DOCKERHUB_USERNAME = 'francodeploy' 
+        DOCKERHUB_USERNAME = 'francodeploy'
+        // Add security thresholds
+        MAX_HIGH_VULNERABILITIES = '0'
+        MAX_CRITICAL_VULNERABILITIES = '0'
     }
 
     stages {
@@ -34,40 +35,131 @@ pipeline {
             steps {
                 dir('backend') {
                     echo '--- Preparing Backend ---'
-                    // For testing, we NEED the dev dependencies.
-                    // We will run the --omit=dev flag in the Dockerfile instead.
                     echo 'Installing all backend dependencies for testing...'
                     sh 'npm ci'
-                    
                     echo 'Running backend tests...'
                     sh 'npm test'
                 }
             }
         }
 
-        // NEW: Basic Security Scans (No credentials required)
+        // ENHANCED: Comprehensive Security Scans
         stage('Security Scans') {
             parallel {
-                stage('Dependency Vulnerability Scan') {
+                stage('Dependency & SAST Scan') {
                     steps {
-                        echo 'Scanning for vulnerable dependencies...'
-                        dir('frontend') {
-                            sh 'npm audit --audit-level high || echo "WARNING: Frontend has vulnerabilities"'
-                        }
-                        dir('backend') {
-                            sh 'npm audit --audit-level high || echo "WARNING: Backend has vulnerabilities"'
+                        script {
+                            dir('frontend') {
+                                sh 'npm audit --audit-level high --json > npm-audit-frontend.json || true'
+                                sh 'semgrep --config=auto . --json -o semgrep-frontend.json || true'
+                            }
+                            dir('backend') {
+                                sh 'npm audit --audit-level high --json > npm-audit-backend.json || true'
+                                sh 'semgrep --config=auto . --json -o semgrep-backend.json || true'
+                            }
                         }
                     }
                 }
-                stage('Container Security Scan') {
+                
+                stage('Container Vulnerability Scan') {
                     steps {
-                        echo 'Scanning Docker images for vulnerabilities...'
                         script {
-                            // Use Docker Scout (built into Docker) for basic scanning
-                            sh "docker scout quickview ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} || echo 'Scan completed'"
-                            sh "docker scout quickview ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} || echo 'Scan completed'"
+                            // Build images first for Trivy scanning
+                            dir('frontend') {
+                                sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
+                            }
+                            dir('backend') {
+                                sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
+                            }
+                            
+                            // Scan with Trivy (more comprehensive than Docker Scout)
+                            sh "trivy image --exit-code 0 --format json --output trivy-frontend.json ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} || true"
+                            sh "trivy image --exit-code 0 --format json --output trivy-backend.json ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} || true"
                         }
                     }
+                }
+                
+                stage('Secrets Detection') {
+                    steps {
+                        script {
+                            // Scan for hardcoded secrets
+                            sh 'gitleaks detect --source . --exit-code 0 --report-format json --report-path gitleaks-report.json || true'
+                        }
+                    }
+                }
+            }
+            
+            post {
+                always {
+                    // Archive all security reports
+                    archiveArtifacts artifacts: '**/*.json, **/*-report.*', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // NEW: Security Analysis & Gates
+        stage('Security Analysis') {
+            steps {
+                script {
+                    echo 'Analyzing security scan results...'
+                    
+                    // Check for critical vulnerabilities
+                    def securityStatus = [
+                        dependencies: true,
+                        containers: true,
+                        secrets: true,
+                        sast: true
+                    ]
+                    
+                    // Analyze npm audit results
+                    dir('frontend') {
+                        if (fileExists('npm-audit-frontend.json')) {
+                            def audit = readJSON file: 'npm-audit-frontend.json'
+                            def criticalVulns = audit.metadata?.vulnerabilities?.critical ?: 0
+                            def highVulns = audit.metadata?.vulnerabilities?.high ?: 0
+                            
+                            if (criticalVulns > 0 || highVulns > 0) {
+                                echo "Frontend has $criticalVulns critical and $highVulns high vulnerabilities"
+                                securityStatus.dependencies = false
+                            }
+                        }
+                    }
+                    
+                    dir('backend') {
+                        if (fileExists('npm-audit-backend.json')) {
+                            def audit = readJSON file: 'npm-audit-backend.json'
+                            def criticalVulns = audit.metadata?.vulnerabilities?.critical ?: 0
+                            def highVulns = audit.metadata?.vulnerabilities?.high ?: 0
+                            
+                            if (criticalVulns > 0 || highVulns > 0) {
+                                echo "Backend has $criticalVulns critical and $highVulns high vulnerabilities"
+                                securityStatus.dependencies = false
+                            }
+                        }
+                    }
+                    
+                    // Check Trivy results
+                    if (fileExists('trivy-frontend.json')) {
+                        def trivy = readJSON file: 'trivy-frontend.json'
+                        def criticalVulns = trivy.Results?.findAll { it.Vulnerabilities?.find { it.Severity == 'CRITICAL' } }?.size() ?: 0
+                        if (criticalVulns > 0) {
+                            echo "Frontend image has $criticalVulns critical vulnerabilities"
+                            securityStatus.containers = false
+                        }
+                    }
+                    
+                    // Check secrets detection
+                    if (fileExists('gitleaks-report.json')) {
+                        def gitleaks = readJSON file: 'gitleaks-report.json'
+                        if (gitleaks.find { it }) {
+                            echo "Potential secrets detected - review gitleaks-report.json"
+                            // Don't fail build for secrets, just warn
+                        }
+                    }
+                    
+                    // Set environment variable for security status
+                    env.SECURITY_STATUS_PASSED = securityStatus.every { it.value }
+                    echo "Security Status: ${env.SECURITY_STATUS_PASSED ? 'PASSED' : 'FAILED'}"
                 }
             }
         }
@@ -76,31 +168,21 @@ pipeline {
             steps {
                 echo '--- Building Docker Images ---'
                 
-                echo 'Building production frontend image...'
+                // Images already built in security stage, just tag them
+                echo 'Tagging production images...'
                 dir('frontend') {
-                    // Use the -f flag to specify the production Dockerfile
-                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
-                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:latest ."
+                    sh "docker tag ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ${DOCKERHUB_USERNAME}/student-app-frontend:latest"
                 }
-
-                echo 'Building production backend image...'
                 dir('backend') {
-                    // Use the -f flag here as well
-                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
-                    sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:latest ."
+                    sh "docker tag ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ${DOCKERHUB_USERNAME}/student-app-backend:latest"
                 }
             }
         }
 
-        // This stage securely logs in and pushes the images.
         stage('Push Docker Images') {
             steps {
-                // This block tells Jenkins: "Find the secret with the nickname 'dockerhub-credentials'".
-                // It injects the real username and password into temporary variables.
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                    
                     echo 'Logging in to Docker Hub...'
-                    // The double quotes are important here to use the variables.
                     sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
                     
                     echo 'Pushing frontend image...'
@@ -114,52 +196,50 @@ pipeline {
             }
         }
 
-        // NEW: Security Approval Gate
-        stage('Security Check') {
+        // ENHANCED: Security Approval Gate
+        stage('Security Approval') {
+            when {
+                expression { env.SECURITY_STATUS_PASSED == 'false' }
+            }
             steps {
-                echo 'Checking security scan results...'
                 script {
-                    // Simple security gate - just a warning for now
-                    echo 'SECURITY STATUS: Basic scans completed'
-                    echo 'NOTE: Review any vulnerabilities reported above before production deployment'
-                    echo 'For critical projects, add: input message: "Security scans completed. Proceed to deployment?"'
+                    echo 'Security scans detected issues that require review!'
+                    echo 'Critical/High vulnerabilities found in:'
+                    echo '- Dependencies (npm audit)'
+                    echo '- Container images (Trivy)'
+                    echo ''
+                    echo 'Please review the security reports in build artifacts.'
+                    echo 'You can either:'
+                    echo '1. Fix the vulnerabilities and re-run pipeline'
+                    echo '2. Acknowledge and proceed (not recommended for production)'
+                    
+                    // Manual approval for security issues
+                    input(
+                        message: 'Security issues detected. Proceed with deployment?', 
+                        ok: 'Deploy Anyway',
+                        submitterParameter: 'approvedBy',
+                        submitter: 'admin,deployer'
+                    )
+                    
+                    echo "Deployment approved by: ${approvedBy}"
                 }
             }
         }
 
-        // The final stage: Automated Deployment
         stage('Deploy to Production') {
             steps {
                 echo '--- Deploying application to the server ---'
 
-                // Use the withCredentials block to securely access the SSH key.
-                // The 'credentialsId' must match the ID you created in Jenkins.
                 withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
-                    
-                    // The 'sh' step will execute a shell script.
-                    // The triple quotes """ allow us to write a multi-line script.
-                    // SECURITY FIX: Changed StrictHostKeyChecking=no to accept-new
                     sh """
-                        # Use the SSH key to connect to the server as the 'terif' user.
-                        # SECURITY: Use 'accept-new' instead of 'no' to maintain some host verification
                         ssh -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR -i \${SSH_KEY} terif@localhost << 'EOF'
-
                             echo 'Connected to the server via SSH.'
-
-                            # Navigate to the project directory
-                            # Using '|| exit 1' ensures the script stops if the cd fails.
                             cd ~/student-app || exit 1
                             echo 'Navigated to project directory.'
-
-                            # Pull the latest source code (to get the latest docker-compose.prod.yml)
                             git pull origin main
                             echo 'Pulled latest source code.'
-
-                            # Pull the latest Docker images that were just built
                             docker compose -f docker-compose.prod.yml pull
                             echo 'Pulled latest Docker images.'
-
-                            # Stop the old containers and start the new ones
                             docker compose -f docker-compose.prod.yml up -d
                             echo 'Deployment complete!'
 EOF
@@ -172,26 +252,54 @@ EOF
     post {
         always {
             echo 'Pipeline finished.'
-            // Always good practice to clean up to save disk space.
             sh 'docker image prune -af'
             
-            // NEW: Security summary
+            // Enhanced security summary
             script {
-                echo "=== SECURITY SUMMARY ==="
-                echo "Basic security scans were performed during this build."
-                echo "Review the logs for any npm audit warnings or Docker Scout findings."
-                echo "For enhanced security, consider adding:"
-                echo "- Secrets detection (gitleaks)"
-                echo "- SAST scanning (semgrep)" 
-                echo "- Container vulnerability scanning (trivy)"
-                echo "- Staging environment before production"
+                echo "=== ENHANCED SECURITY SUMMARY ==="
+                echo "Scans performed:"
+                echo "Dependency scanning (npm audit)"
+                echo "Container vulnerability scanning (Trivy)"
+                echo "Secrets detection (Gitleaks)"
+                echo "SAST scanning (Semgrep)"
+                echo ""
+                echo "Security gates:"
+                echo "Manual approval required for critical vulnerabilities"
+                echo "Security reports archived as build artifacts"
+                echo ""
+                echo "Next level improvements:"
+                echo "- Add staging environment"
+                "- Implement automated compliance checks"
+                "- Add runtime security scanning"
+                "- Integrate with security dashboard"
             }
         }
         success {
-            echo 'Pipeline completed successfully with basic security checks!'
+            // Security notification
+            emailext (
+                subject: "SECURITY: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
+                body: """
+                Pipeline completed with security scanning!
+                
+                Build: ${env.BUILD_URL}
+                Security Status: ${env.SECURITY_STATUS_PASSED ? 'PASSED' : 'REVIEW REQUIRED'}
+                
+                Security reports available in build artifacts.
+                """,
+                to: "team@yourcompany.com"
+            )
         }
         failure {
-            echo 'Pipeline failed! Check logs for details.'
+            emailext (
+                subject: "SECURITY ALERT: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
+                body: """
+                Pipeline failed during security scanning!
+                
+                Build: ${env.BUILD_URL}
+                Check security scan results and fix vulnerabilities.
+                """,
+                to: "team@yourcompany.com"
+            )
         }
     }
 }
