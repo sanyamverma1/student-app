@@ -240,35 +240,117 @@ pipeline {
             }
         }
 
-        // The final stage: Automated Deployment
-        stage('Deploy to Production') {
-            steps {
-                echo '--- Deploying application to the server ---'
-                withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR -i \${SSH_KEY} terif@localhost '
-                            echo "Connected to the server via SSH."
-                            cd ~/student-app || exit 1
-                            echo "Navigated to project directory."
-                            
-                            # FIX: Update git remote URL to correct repository
-                            git remote set-url origin https://github.com/student-app-team/student-app.git
-                            echo "Updated git remote URL"
-                            
-                            git pull origin main
-                            echo "Pulled latest source code."
-                            docker compose -f docker-compose.prod.yml pull
-                            echo "Pulled latest Docker images."
-                            docker compose -f docker-compose.prod.yml up -d
-                            echo "Deployment complete!"
-                        '
-                    """
-                }
-            }
-        }
-    }
+         // The final stage: Automated Deployment with Troubleshooting
+         stage('Deploy to Production') {
+             steps {
+                 echo '--- Deploying application to the server ---'
+                 withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
+                     sh """
+                         ssh -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR -i \${SSH_KEY} terif@localhost '
+                             echo "Connected to the server via SSH."
+                             cd ~/student-app || exit 1
+                             echo "Navigated to project directory."
+                             
+                             # FIX: Update git remote URL to correct repository
+                             git remote set-url origin https://github.com/student-app-team/student-app.git
+                             echo "Updated git remote URL"
+                             
+                             git pull origin main
+                             echo "Pulled latest source code."
+                             
+                             # Stop existing containers first
+                             echo "Stopping existing containers..."
+                             docker compose -f docker-compose.prod.yml down || true
+                             
+                             # Pull latest images
+                             echo "Pulling latest Docker images..."
+                             docker compose -f docker-compose.prod.yml pull
+                             
+                             # Start services with health checks
+                             echo "Starting services..."
+                             docker compose -f docker-compose.prod.yml up -d
+                             
+                             # Wait for services to be ready
+                             echo "Waiting for services to start..."
+                             sleep 10
+                             
+                             # Health check - check if containers are running
+                             echo "=== CONTAINER STATUS ==="
+                             docker compose -f docker-compose.prod.yml ps
+                             
+                             # Check backend health
+                             echo "=== BACKEND HEALTH CHECK ==="
+                             curl -f http://localhost:5000/api/admin/students || echo "Backend health check failed"
+                             
+                             # Check frontend accessibility
+                             echo "=== FRONTEND HEALTH CHECK ==="
+                             curl -f http://localhost:3000 || echo "Frontend health check failed"
+                             
+                             # Show logs for troubleshooting
+                             echo "=== RECENT BACKEND LOGS ==="
+                             docker compose -f docker-compose.prod.yml logs --tail=20 backend
+                             
+                             echo "=== RECENT FRONTEND LOGS ==="
+                             docker compose -f docker-compose.prod.yml logs --tail=20 frontend
+                             
+                             echo "Deployment complete with health checks!"
+                         '
+                     """
+                 }
+             }
+         }
 
-     post {
+         // TROUBLESHOOTING: Health Check and Debug Stage
+         stage('Health Check & Troubleshooting') {
+             steps {
+                 echo '--- Running Health Checks and Troubleshooting ---'
+                 withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
+                     sh """
+                         ssh -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR -i \${SSH_KEY} terif@localhost '
+                             echo "=== HEALTH CHECK & TROUBLESHOOTING ==="
+                             cd ~/student-app || exit 1
+                             
+                             # Make troubleshoot script executable
+                             chmod +x troubleshoot.sh
+                             
+                             # Run troubleshooting script
+                             ./troubleshoot.sh
+                             
+                             # Additional specific checks
+                             echo "=== ADDITIONAL CHECKS ==="
+                             
+                             # Check if MongoDB is accessible from backend
+                             echo "Testing MongoDB connection from backend container..."
+                             docker exec student-app-backend node -e "
+                                 const mongoose = require('mongoose');
+                                 mongoose.connect('mongodb://mongo:27017/studentapp', {useNewUrlParser: true, useUnifiedTopology: true})
+                                   .then(() => {
+                                     console.log('✅ MongoDB connection successful');
+                                     process.exit(0);
+                                   })
+                                   .catch(err => {
+                                     console.log('❌ MongoDB connection failed:', err.message);
+                                     process.exit(1);
+                                   });
+                             " || echo "MongoDB connection test failed"
+                             
+                             # Check backend API endpoints
+                             echo "Testing backend API endpoints..."
+                             curl -s http://localhost:5000/api/admin/students | head -c 100 || echo "Admin API not responding"
+                             
+                             # Check if frontend can reach backend
+                             echo "Testing frontend-backend connectivity..."
+                             docker exec student-app-frontend curl -s http://backend:5000/api/admin/students | head -c 100 || echo "Frontend cannot reach backend"
+                             
+                             echo "=== TROUBLESHOOTING COMPLETE ==="
+                         '
+                     """
+                 }
+             }
+         }
+     }
+
+      post {
         always {
             echo 'Pipeline finished.'
             sh 'docker image prune -af'

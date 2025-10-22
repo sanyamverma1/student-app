@@ -51,7 +51,7 @@ app.post("/api/admin/login", async (req, res) => {
     res.status(500).json({ message: "Server error during admin login" });
   }
 });
-// REMOVED DUPLICATE LOGIN ROUTE - Using the main one below
+// REMOVED DUPLICATE LOGIN ROUTE - This was causing conflicts
 
 /* ----------------------------------------------------------
    🧠 LOGIN OR REGISTER NEW STUDENT (email + password)

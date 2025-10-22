@@ -16,8 +16,8 @@ function Login() {
     setError("");
 
     if (role === "student") {
-      if (!email.endsWith("@student.swin.edu.au")) {
-        setError("Please use your Swinburne student email address");
+      if (!email.endsWith("@student.edu")) {
+        setError("Please use your student email address");
         return;
       }
 
