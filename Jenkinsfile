@@ -168,7 +168,7 @@ pipeline {
             }
         }
 
-         // FIXED: Security Approval Gate with Auto-approval Timer
+         // FIXED: Security Approval Gate using standard Jenkins steps
          stage('Security Approval') {
              when {
                  expression { env.SECURITY_REVIEW_REQUIRED == 'true' }
@@ -177,42 +177,31 @@ pipeline {
                  script {
                      echo '=== SECURITY APPROVAL REQUIRED ==='
                      echo "Build: ${env.BUILD_NUMBER}"
-                     // DYNAMIC: Use actual vulnerability counts
                      echo "Frontend: ${env.FRONTEND_VULNERABILITIES}"
                      echo "Backend: ${env.BACKEND_VULNERABILITIES}" 
                      echo "Secrets: ${env.SECRETS_STATUS}"
                      echo ''
-                     echo 'Options:'
-                     echo '1. Approve deployment (acknowledge risks)'
-                     echo '2. Cancel and fix vulnerabilities first'
-                     echo '3. Check security reports in build artifacts'
-                     echo ''
-                     echo 'AUTO-APPROVAL: Will automatically deploy in 5 seconds if no response...'
-                     
-                     // Start timer in background
-                     def timer = Thread.start {
-                         sleep(5000) // 5 seconds
-                         echo 'Timer expired - auto-approving deployment...'
-                     }
+                     echo 'This build will be aborted in 5 minutes if not manually approved.'
                      
                      try {
-                         def deploymentApproval = input(
-                             // DYNAMIC: Use actual vulnerability info in message
-                             message: "Security: Build ${env.BUILD_NUMBER} has vulnerabilities. Frontend: ${env.FRONTEND_VULNERABILITIES}, Backend: ${env.BACKEND_VULNERABILITIES}. Auto-approving in 5 seconds...", 
-                             ok: 'Deploy Anyway',
-                             submitterParameter: 'APPROVED_BY',
-                             parameters: [
-                                 string(name: 'TIMEOUT_SECONDS', defaultValue: '5', description: 'Auto-approval timeout in seconds')
-                             ]
-                         )
-                         timer.interrupt() // Cancel timer if manual input received
-                         env.DEPLOYMENT_APPROVED_BY = deploymentApproval
-                         echo "Manually approved by: ${env.DEPLOYMENT_APPROVED_BY}"
-                     } catch (Exception e) {
-                         // If input times out or is interrupted, auto-approve
-                         timer.interrupt()
-                         env.DEPLOYMENT_APPROVED_BY = 'AUTO-APPROVED (Timer)'
-                         echo "Auto-approved due to timeout: ${env.DEPLOYMENT_APPROVED_BY}"
+                         // Use the sandbox-safe 'timeout' step to wrap the 'input' step.
+                         timeout(time: 5, unit: 'MINUTES') {
+                             def userInput = input(
+                                 id: 'SecurityApprovalGate',
+                                 message: 'Security vulnerabilities were detected. Do you want to approve this deployment?', 
+                                 ok: 'Approve and Deploy',
+                                 submitterParameter: 'approvedBy'
+                             )
+                             env.DEPLOYMENT_APPROVED_BY = userInput.approvedBy
+                             echo "Manually approved by: ${env.DEPLOYMENT_APPROVED_BY}"
+                         }
+                     } catch (err) {
+                         // The timeout was reached, so the build will fail here.
+                         // Jenkins automatically throws an error when a timeout is exceeded.
+                         env.DEPLOYMENT_APPROVED_BY = 'N/A (Timeout)'
+                         // We don't need to do anything else; the error will stop the pipeline.
+                         // The 'failure' block in your 'post' section will handle the notification.
+                         error "Deployment not approved within the 5-minute time limit. Aborting."
                      }
                  }
              }
