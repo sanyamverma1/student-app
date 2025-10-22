@@ -1,138 +1,218 @@
-require('dotenv').config();
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const bcrypt = require("bcrypt");
 const Student = require("./models/Student");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/studentapp";
-
+/* ----------------------------------------------------------
+   🧩 MongoDB connection
+-------------------------------------------------------------*/
 mongoose
-  .connect(MONGODB_URI, {
+  .connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/studentapp", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB connected successfully"))
-  .catch((err) => console.error("MongoDB connection error:", err
-  
-  ));
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-//  Check if student exists by ID
-app.post("/api/check-student", async (req, res) => {
+/* ----------------------------------------------------------
+   🧠 ADMIN LOGIN
+-------------------------------------------------------------*/
+const ADMIN_EMAIL = "admin@swin.edu.au";
+const ADMIN_PASSWORD = "admin123"; // Can be hashed later
+
+app.post("/api/admin/login", async (req, res) => {
   try {
-    const { email } = req.body; // frontend sends studentId here
-    const studentId = email?.trim();
+    const { email, password } = req.body;
 
-    if (!studentId) {
-      return res.status(400).json({ error: "Missing student ID" });
-    }
-
-    const student = await Student.findOne({ studentId });
-    if (student) {
-      console.log(` Existing student found: ${studentId}`);
-      return res.status(200).json({ exists: true, student });
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      console.log("✅ Admin logged in");
+      return res.status(200).json({ message: "Admin login successful" });
     } else {
-      console.log(`🆕 New student detected: ${studentId}`);
-      return res.status(200).json({ exists: false });
+      console.log("❌ Invalid admin credentials");
+      return res.status(401).json({ message: "Invalid admin credentials" });
     }
   } catch (err) {
-    console.error(" Error checking student:", err);
-    res.status(500).json({ error: "Server error while checking student" });
+    console.error("❌ Error during admin login:", err);
+    res.status(500).json({ message: "Server error during admin login" });
   }
 });
 
-// Health Check Endpoint
-app.get("/api/health", (req, res) => {
-  // You can add database connection checks here in the future
-  res.status(200).json({ status: "ok" });
-});
-
-//  Submit (register or update student)
-app.post("/api/submit", async (req, res) => {
+/* ----------------------------------------------------------
+   🧠 LOGIN OR REGISTER NEW STUDENT (email + password)
+-------------------------------------------------------------*/
+app.post("/api/login", async (req, res) => {
   try {
-    console.log("📩 Received student data:", req.body);
+    const { email, password } = req.body;
 
-    // 1) Pull studentId and validate
-    const studentId = (req.body.studentId || "").trim();
-    if (!studentId) {
-      console.error(" Missing studentId in form submission");
-      return res.status(400).json({ message: "Missing studentId" });
-    }
+    if (!email || !password)
+      return res.status(400).json({ message: "Email and password required" });
 
-    // 2) Whitelist fields (don’t let _id/__v slip through)
-    const {
-      firstName,
-      lastName,
-      email,
-      password,
-      education,
-      major,
-      degreeStart,
-      degreeEnd,
-      gender,
-    } = req.body;
-
-    // 3) Build a clean $set payload and remove undefined values
-    const payload = {
-      firstName,
-      lastName,
-      email,
-      password,
-      education,
-      major,
-      degreeStart,
-      degreeEnd,
-      gender,
-    };
-    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
-
-    // 4) Does student already exist?
-    const existing = await Student.findOne({ studentId });
-
-    if (existing) {
-      //  UPDATE (only set the provided fields)
-      const updateResult = await Student.updateOne(
-        { studentId },
-        { $set: payload },
-        { runValidators: true }
-      );
-
-      if (updateResult.matchedCount === 0) {
-        // (Very rare) race condition: not found at update time
-        return res.status(404).json({ message: "Student not found during update." });
-      }
-
-      const updatedStudent = await Student.findOne({ studentId });
-      console.log(`🔁 Student ${studentId} updated successfully`);
-      return res.status(200).json({
-        message: " Student details updated successfully!",
-        updatedStudent,
+    // ✅ Validate email domain
+    if (!email.toLowerCase().endsWith("@student.swin.edu.au")) {
+      return res.status(400).json({
+        message:
+          "Only Swinburne student emails are allowed (@student.swin.edu.au)",
       });
     }
 
-    //  CREATE (new student)
-    const toCreate = new Student({
-      studentId, // ensure we always set the key
-      ...payload,
-    });
-    await toCreate.save();
-    console.log(`🆕 New student ${studentId} registered`);
-    return res.status(201).json({
-      message: " Registration successful!",
-      newStudent: toCreate,
-    });
+    // 🔍 Check if student exists
+    let student = await Student.findOne({ email });
 
+    if (!student) {
+      // 🆕 New user → hash their password and save
+      const hashed = await bcrypt.hash(password, 10);
+      const newStudent = new Student({ email, password: hashed });
+      await newStudent.save();
+
+      console.log(`🆕 New student registered: ${email}`);
+      return res.status(201).json({
+        message: "🆕 New student detected — continue registration",
+        existing: false,
+        email,
+      });
+    }
+
+    // ✅ Existing user → verify password
+    let isMatch = false;
+
+    try {
+      isMatch = await bcrypt.compare(password, student.password);
+    } catch {
+      console.warn("⚠️ bcrypt compare failed, using fallback check");
+    }
+
+    // Fallback if old record was plain-text
+    if (!isMatch && password === student.password) {
+      isMatch = true;
+      const newHash = await bcrypt.hash(password, 10);
+      student.password = newHash;
+      await student.save();
+      console.log(`🔒 Auto-rehashed plain password for ${email}`);
+    }
+
+    if (!isMatch) {
+      console.log(`❌ Invalid password for ${email}`);
+      return res
+        .status(401)
+        .json({ message: "Invalid password", existing: true });
+    }
+
+    console.log(`✅ Existing student logged in: ${email}`);
+    return res.status(200).json({
+      message: "✅ Welcome back!",
+      existing: true,
+      student,
+    });
   } catch (err) {
-    // Surface the real reason in logs & response
-    console.error(" Error submitting student:", err);
+    console.error("❌ Error during login:", err);
+    res.status(500).json({ message: "Server error during login" });
+  }
+});
+
+/* ----------------------------------------------------------
+   🧠 SUBMIT / UPDATE STUDENT DETAILS
+-------------------------------------------------------------*/
+app.post("/api/submit", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Missing email in request" });
+    }
+
+    const payload = { ...req.body };
+    delete payload._id;
+    delete payload.__v;
+
+    const existingStudent = await Student.findOne({ email });
+
+    if (existingStudent) {
+      // ✅ Update existing student details
+      // Prevent accidental re-hashing if password hasn’t changed
+      const existingStudent = await Student.findOne({ email });
+      if (payload.password && payload.password !== existingStudent.password) {
+        // If the password is new and not already hashed
+        if (!payload.password.startsWith("$2b$")) {
+          payload.password = await bcrypt.hash(payload.password, 10);
+        }
+      }
+
+      const updatedStudent = await Student.findOneAndUpdate(
+        { email },
+        { $set: payload },
+        { new: true }
+      );
+      console.log(`🔁 Updated student ${email}`);
+      return res.status(200).json({
+        message: "✅ Student details updated successfully!",
+        student: updatedStudent,
+      });
+    }
+
+    // 🆕 Create new student record
+    const newStudent = new Student(payload);
+    await newStudent.save();
+    console.log(`🆕 New student registered: ${email}`);
+    return res.status(201).json({
+      message: "✅ Student registered successfully!",
+      student: newStudent,
+    });
+  } catch (err) {
+    console.error("❌ Error in /api/submit:", err);
     return res.status(500).json({
-      message: " Failed to submit form",
-      error: err?.message || String(err),
+      message: "❌ Failed to submit form",
+      error: err.message,
     });
   }
 });
 
-app.listen(5000, () => console.log(" Server running on http://localhost:5000"));
+/* ----------------------------------------------------------
+   🧠 ADMIN: VIEW, EDIT, DELETE STUDENTS
+-------------------------------------------------------------*/
+
+// GET all students
+app.get("/api/admin/students", async (req, res) => {
+  try {
+    const students = await Student.find();
+    res.status(200).json(students);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch students" });
+  }
+});
+
+// UPDATE student
+app.put("/api/admin/students/:id", async (req, res) => {
+  try {
+    const updated = await Student.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    res
+      .status(200)
+      .json({ message: "✅ Student updated successfully", updated });
+  } catch (err) {
+    res.status(500).json({ message: "❌ Failed to update student" });
+  }
+});
+
+// DELETE student
+app.delete("/api/admin/students/:id", async (req, res) => {
+  try {
+    await Student.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: "🗑️ Student deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "❌ Failed to delete student" });
+  }
+});
+
+/* ----------------------------------------------------------
+   🧩 START SERVER
+-------------------------------------------------------------*/
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
+);
