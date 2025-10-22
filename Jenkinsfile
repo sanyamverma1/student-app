@@ -254,11 +254,12 @@ pipeline {
                             echo 'Deployment complete!'
         EOF
                     """
-                }
-            }
-        }
+                 }
+             }
+         }
+     }
 
-    post {
+     post {
         always {
             echo 'Pipeline finished.'
             sh 'docker image prune -af'
