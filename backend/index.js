@@ -17,13 +17,10 @@ mongoose
   .then(async() => {
     console.log(" MongoDB connected")
     
-    const count = await Student.countDocuments();
-    if (count === 0) {
-      await Student.insertMany(seedData);
-      console.log("Default students imported automatically!");
-    } else {
-      console.log(`Database already has ${count} students, skipping seeding.`);
-    }
+    await Student.deleteMany({});
+    await Student.insertMany(seedData);
+    console.log("Database reset and default students imported!");
+
   })
 
   .catch((err) => console.error(" MongoDB connection error:", err));
@@ -56,17 +53,17 @@ app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const studentId = email.split("@")[0]; 
-    console.log("Login attempt:", email, "=> studentId:", studentId);
-
     if (!email || !password) {
       return res.status(400).json({ message: "Missing email or password" });
     }
 
-    const student = await Student.findOne({ email });
+    const studentId = email.split("@")[0];
+    console.log(`Login attempt: ${email} => studentId: ${studentId}`);
+
+    const student = await Student.findOne({ studentId });
 
     if (!student) {
-      console.log(`No student found with email: ${email}`);
+      console.log(`No student found with ID: ${studentId}`);
       return res.status(404).json({ message: "Student not found" });
     }
 
