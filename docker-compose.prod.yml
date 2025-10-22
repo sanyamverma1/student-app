@@ -1,7 +1,8 @@
 # docker-compose.prod.yml
 # This file is for deploying to the production server.
 
-version: '3.8'
+# This line is obsolete and can be safely removed to avoid the warning.
+# version: '3.8'
 
 services:
   # The Frontend Service (pulls from Docker Hub)
@@ -9,10 +10,12 @@ services:
     image: francodeploy/student-app-frontend:latest
     container_name: student-app-frontend
     ports:
-      # NGINX inside the container listens on port 80.
-      # We map the server's public port 80 to the container's port 80.
       - "80:80"
     restart: always
+    # --- ADDED THIS BLOCK ---
+    # Add the frontend to the same network so all services are linked.
+    networks:
+      - studentapp-net
 
   # The Backend Service (pulls from Docker Hub)
   backend:
@@ -21,12 +24,12 @@ services:
     ports:
       - "5000:5000"
     restart: always
+    # --- CHANGED THIS SECTION ---
+    # Use the more reliable "map" format for environment variables.
     environment:
-      # This is the key change. We connect to the 'mongo' service by its name.
-      - MONGODB_URI=mongodb://mongo:27017/studentapp
+      MONGODB_URI: "mongodb://mongo:27017/studentapp"
     depends_on:
       - mongo
-    # We will create a shared network for the services.
     networks:
       - studentapp-net
 
@@ -35,8 +38,6 @@ services:
     image: mongo:latest
     container_name: student-app-db
     restart: always
-    # This volume will persist the database data on the host VM's disk.
-    # If the container is removed, your data will still be safe.
     volumes:
       - mongo-data:/data/db
     networks:

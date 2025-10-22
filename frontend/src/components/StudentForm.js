@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -7,75 +7,58 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 function StudentForm() {
   const location = useLocation();
-  const studentIdFromLogin = location.state?.studentId || "";
-  const [studentIdInput, setStudentIdInput] = useState(studentIdFromLogin);
-  const [step, setStep] = useState("check");
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    studentId: "",
-    education: "",
-    major: "",
-    degreeStart: new Date(),
-    degreeEnd: new Date(),
-    gender: "",
-  });
+  const navigate = useNavigate();
+
+  //  Values passed from Login.js
+  const { email, existing, student } = location.state || {};
+
+  //  Initialize form data
+  const [form, setForm] = useState(
+    student
+      ? {
+          ...student,
+          degreeStart: student.degreeStart
+            ? new Date(student.degreeStart)
+            : new Date(),
+          degreeEnd: student.degreeEnd
+            ? new Date(student.degreeEnd)
+            : new Date(),
+        }
+      : {
+          firstName: "",
+          lastName: "",
+          email: email || "",
+          password: "",
+          studentId: "",
+          education: "",
+          major: "",
+          degreeStart: new Date(),
+          degreeEnd: new Date(),
+          gender: "",
+        }
+  );
 
   const [response, setResponse] = useState("");
-  const [isExistingStudent, setIsExistingStudent] = useState(false);
-  const [isEditable, setIsEditable] = useState(false);
+  const [isExistingStudent, setIsExistingStudent] = useState(existing || false);
+  const [isEditable, setIsEditable] = useState(!existing);
   const [hasChanges, setHasChanges] = useState(false);
+  const [step, setStep] = useState("check");
 
-  // ✅ Step 1: Check if student exists
-  const handleCheckStudent = async () => {
-    console.log("DEBUG studentIdInput:", studentIdInput); 
-    if (!studentIdInput.trim())
-      return alert("Please enter your student ID to continue");
-
-    try {
-      const res = await axios.post("http://localhost:5000/api/check-student", {
-        studentId: studentIdInput, // backend uses email field, but we’re treating ID as unique login
-      });
-
-      if (res.data.exists) {
-        const s = res.data.student;
-        setForm({
-          ...s,
-          degreeStart: s.degreeStart ? new Date(s.degreeStart) : new Date(),
-          degreeEnd: s.degreeEnd ? new Date(s.degreeEnd) : new Date(),
-        });
-        setIsExistingStudent(true);
-        setStep("form");
-        alert("Welcome back! You can view or edit your details.");
-      } else {
-        setForm((prev) => ({ ...prev, studentId: studentIdInput }));
-        setIsExistingStudent(false);
-        setIsEditable(true);
-        setStep("form");
-        alert("New student detected. Please register below.");
-      }
-    } catch (err) {
-      console.error("❌ Error checking student:", err);
-      alert("Server error while checking student ID.");
-    }
-  };
-
-  // ✅ Handle input changes
+  //  Handle input changes
   const handleChange = (e) => {
     if (!isEditable && isExistingStudent) return;
     setForm({ ...form, [e.target.name]: e.target.value });
     setHasChanges(true);
   };
 
+  //  Handle date changes
   const handleDateChange = (field, date) => {
     if (!isEditable && isExistingStudent) return;
     setForm({ ...form, [field]: date });
     setHasChanges(true);
   };
 
-  // ✅ Submit (register or update)
+  //  Submit (register or update)
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -95,25 +78,9 @@ function StudentForm() {
       alert(res.data.message);
       setResponse(res.data.message);
 
-      // ✅ Reset back to ID login after 2 seconds
+      //  Reset back to login after short delay
       setTimeout(() => {
-        setForm({
-          firstName: "",
-          lastName: "",
-          email: "",
-          password: "",
-          studentId: "",
-          education: "",
-          major: "",
-          degreeStart: new Date(),
-          degreeEnd: new Date(),
-          gender: "",
-        });
-        setStep("check");
-        setStudentIdInput("");
-        setIsEditable(false);
-        setIsExistingStudent(false);
-        setHasChanges(false);
+        navigate("/");
       }, 2000);
     } catch (err) {
       console.error("❌ Error during submit:", err);
@@ -122,14 +89,11 @@ function StudentForm() {
     }
   };
 
-  // ✅ Cancel and reset
+  // ✅ Cancel button → return to login
   const handleCancel = () => {
-    setStep("check");
-    setIsEditable(false);
-    setIsExistingStudent(false);
-    setStudentIdInput("");
-    setHasChanges(false);
+    navigate("/");
   };
+
   return (
     <div
       className="min-vh-100 d-flex align-items-center justify-content-center"
@@ -143,11 +107,14 @@ function StudentForm() {
           className="card p-5 shadow-lg text-center"
           style={{ maxWidth: "500px", width: "100%", borderRadius: "20px" }}
         >
-          <h4 className="text-primary mb-3">🎓 Confirm Your Student ID</h4>
-          <p className="fs-5 fw-bold text-dark mb-3">{studentIdInput}</p>
-          <button className="btn btn-primary w-100" onClick={handleCheckStudent}>
+          <h4 className="text-primary mb-3">🎓 Logged in as</h4>
+          <p className="fs-5 fw-bold text-dark mb-3">{form.email}</p>
+          <button
+            className="btn btn-primary w-100"
+            onClick={() => setStep("form")}
+          >
             Continue
-          </button> 
+          </button>
         </div>
       ) : (
         <div
@@ -178,6 +145,7 @@ function StudentForm() {
                   disabled={isExistingStudent && !isEditable}
                 />
               </div>
+
               <div className="col-md-6">
                 <label className="form-label">Last Name</label>
                 <input
@@ -189,17 +157,6 @@ function StudentForm() {
                 />
               </div>
 
-              {/* Student ID */}
-              <div className="col-md-6">
-                <label className="form-label">Student ID</label>
-                <input
-                  className="form-control"
-                  name="studentId"
-                  value={form.studentId}
-                  disabled
-                />
-              </div>
-
               {/* Email */}
               <div className="col-md-6">
                 <label className="form-label">Email</label>
@@ -208,8 +165,7 @@ function StudentForm() {
                   className="form-control"
                   name="email"
                   value={form.email}
-                  onChange={handleChange}
-                  disabled={isExistingStudent && !isEditable}
+                  disabled
                 />
               </div>
 
@@ -254,7 +210,9 @@ function StudentForm() {
               <div className="col-md-6">
                 <label className="form-label">Degree Start</label>
                 <DatePicker
-                  selected={new Date(form.degreeStart)}
+                  selected={
+                    form.degreeStart ? new Date(form.degreeStart) : new Date()
+                  }
                   onChange={(date) => handleDateChange("degreeStart", date)}
                   showMonthYearPicker
                   dateFormat="MMM yyyy"
@@ -266,7 +224,9 @@ function StudentForm() {
               <div className="col-md-6">
                 <label className="form-label">Expected Graduation</label>
                 <DatePicker
-                  selected={new Date(form.degreeEnd)}
+                  selected={
+                    form.degreeEnd ? new Date(form.degreeEnd) : new Date()
+                  }
                   onChange={(date) => handleDateChange("degreeEnd", date)}
                   showMonthYearPicker
                   dateFormat="MMM yyyy"
