@@ -1,8 +1,8 @@
-import axios from "axios";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import "../styles/login.css";
+import apiClient from "../api";
+
 
 function Login() {
   const [role, setRole] = useState("student");
@@ -22,7 +22,7 @@ function Login() {
       }
 
       try {
-        const res = await axios.post("http://localhost:5000/api/login", {
+        const res = await apiClient.post("/api/login", {
           email,
           password,
         });
@@ -44,7 +44,7 @@ function Login() {
     try {
       // 🧩 Admin login
       if (role === "admin") {
-        const res = await axios.post("http://localhost:5000/api/admin/login", {
+        const res = await apiClient.post("/api/admin/login", {
           email,
           password,
         });
@@ -59,7 +59,7 @@ function Login() {
         return;
       }
 
-      const res = await axios.post("http://localhost:5000/api/login", {
+      const res = await apiClient.post("/api/login", {
         email,
         password,
       });

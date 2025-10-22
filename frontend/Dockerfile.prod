@@ -1,13 +1,3 @@
-# FROM node:18
-# WORKDIR /app
-# COPY package*.json ./
-# RUN npm install
-# COPY . .
-# RUN npm run build
-# EXPOSE 3000
-# CMD ["npm", "start"]
-
-
 # Dockerfile for Frontend (Production)
 
 # --- Stage 1: Build ---
@@ -17,6 +7,17 @@ FROM node:18-alpine AS builder
 # Set the working directory
 WORKDIR /app
 
+
+# This declares a build-time argument named REACT_APP_API_URL.
+# We will pass a value to this from our Jenkinsfile.
+ARG REACT_APP_API_URL
+
+
+# This sets the build argument as an environment variable, making it
+# accessible to the 'npm run build' script via process.env.
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
+
 # Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
@@ -24,11 +25,15 @@ RUN npm install
 # Copy the rest of the source code
 COPY . .
 
-# Run the production build script, which creates the /app/build directory
+# Run the production build script. This script will now see the
+# REACT_APP_API_URL environment variable and bake its value into the
+# final static JavaScript files.
 RUN npm run build
 
+
 # --- Stage 2: Serve ---
-# Use a lightweight NGINX server to serve the static files.
+# This stage does not need to know about the API URL. It just serves files.
+# NO CHANGES ARE NEEDED IN THIS STAGE.
 FROM nginx:1.25-alpine
 
 # Copy the built assets from the 'builder' stage

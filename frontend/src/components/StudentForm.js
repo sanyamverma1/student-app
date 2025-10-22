@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import apiClient from "../api";
+
 
 function StudentForm() {
   const location = useLocation();
@@ -74,7 +75,7 @@ function StudentForm() {
 
       const payload = { ...form, degreeStart, degreeEnd };
 
-      const res = await axios.post("http://localhost:5000/api/submit", payload);
+      const res = await apiClient.post("/api/submit", payload);
       alert(res.data.message);
       setResponse(res.data.message);
 
