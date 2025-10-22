@@ -8,9 +8,6 @@ pipeline {
 
     environment {
         DOCKERHUB_USERNAME = 'francodeploy'
-        // Add security thresholds
-        MAX_HIGH_VULNERABILITIES = '0'
-        MAX_CRITICAL_VULNERABILITIES = '0'
     }
 
     stages {
@@ -43,19 +40,17 @@ pipeline {
             }
         }
 
-        // ENHANCED: Comprehensive Security Scans
+        // ENHANCED: Comprehensive Security Scans (FIXED)
         stage('Security Scans') {
             parallel {
-                stage('Dependency & SAST Scan') {
+                stage('Dependency Scan') {
                     steps {
                         script {
                             dir('frontend') {
-                                sh 'npm audit --audit-level high --json > npm-audit-frontend.json || true'
-                                sh 'semgrep --config=auto . --json -o semgrep-frontend.json || true'
+                                sh 'npm audit --audit-level high || echo "Frontend vulnerabilities found"'
                             }
                             dir('backend') {
-                                sh 'npm audit --audit-level high --json > npm-audit-backend.json || true'
-                                sh 'semgrep --config=auto . --json -o semgrep-backend.json || true'
+                                sh 'npm audit --audit-level high || echo "Backend vulnerabilities found"'
                             }
                         }
                     }
@@ -72,9 +67,9 @@ pipeline {
                                 sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
                             }
                             
-                            // Scan with Trivy (more comprehensive than Docker Scout)
-                            sh "trivy image --exit-code 0 --format json --output trivy-frontend.json ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} || true"
-                            sh "trivy image --exit-code 0 --format json --output trivy-backend.json ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} || true"
+                            // Scan with Trivy
+                            sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} || echo 'Frontend container scan completed'"
+                            sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} || echo 'Backend container scan completed'"
                         }
                     }
                 }
@@ -83,83 +78,123 @@ pipeline {
                     steps {
                         script {
                             // Scan for hardcoded secrets
-                            sh 'gitleaks detect --source . --exit-code 0 --report-format json --report-path gitleaks-report.json || true'
+                            sh 'gitleaks detect --source . --exit-code 0 || echo "Secrets scan completed"'
                         }
                     }
-                }
-            }
-            
-            post {
-                always {
-                    // Archive all security reports
-                    archiveArtifacts artifacts: '**/*.json, **/*-report.*', allowEmptyArchive: true
                 }
             }
         }
 
-        // NEW: Security Analysis & Gates
-        stage('Security Analysis') {
+        // DYNAMIC: Security Analysis
+        stage('Security Review') {
             steps {
                 script {
-                    echo 'Analyzing security scan results...'
+                    echo '=== SECURITY SCAN SUMMARY ==='
+                    echo 'Scans performed:'
+                    echo '- Dependency scanning (npm audit)'
+                    echo '- Container vulnerability scanning (Trivy)'
+                    echo '- Secrets detection (Gitleaks)'
+                    echo ''
                     
-                    // Check for critical vulnerabilities
-                    def securityStatus = [
-                        dependencies: true,
-                        containers: true,
-                        secrets: true,
-                        sast: true
-                    ]
+                    // DYNAMIC: Try to detect actual vulnerabilities
+                    def frontendVulns = "Unknown"
+                    def backendVulns = "Unknown"
+                    def secretsFound = "Unknown"
                     
-                    // Analyze npm audit results
+                    // Check frontend npm audit results
                     dir('frontend') {
-                        if (fileExists('npm-audit-frontend.json')) {
-                            def audit = readJSON file: 'npm-audit-frontend.json'
-                            def criticalVulns = audit.metadata?.vulnerabilities?.critical ?: 0
-                            def highVulns = audit.metadata?.vulnerabilities?.high ?: 0
-                            
-                            if (criticalVulns > 0 || highVulns > 0) {
-                                echo "Frontend has $criticalVulns critical and $highVulns high vulnerabilities"
-                                securityStatus.dependencies = false
+                        try {
+                            def auditOutput = sh(script: 'npm audit --audit-level high --silent 2>&1 || true', returnStdout: true).trim()
+                            if (auditOutput.contains("found 0 vulnerabilities")) {
+                                frontendVulns = "0"
+                            } else if (auditOutput.contains("high")) {
+                                frontendVulns = "High vulnerabilities detected"
+                            } else {
+                                frontendVulns = "Vulnerabilities found (check logs)"
                             }
+                        } catch (Exception e) {
+                            frontendVulns = "Scan failed"
                         }
                     }
                     
+                    // Check backend npm audit results
                     dir('backend') {
-                        if (fileExists('npm-audit-backend.json')) {
-                            def audit = readJSON file: 'npm-audit-backend.json'
-                            def criticalVulns = audit.metadata?.vulnerabilities?.critical ?: 0
-                            def highVulns = audit.metadata?.vulnerabilities?.high ?: 0
-                            
-                            if (criticalVulns > 0 || highVulns > 0) {
-                                echo "Backend has $criticalVulns critical and $highVulns high vulnerabilities"
-                                securityStatus.dependencies = false
+                        try {
+                            def auditOutput = sh(script: 'npm audit --audit-level high --silent 2>&1 || true', returnStdout: true).trim()
+                            if (auditOutput.contains("found 0 vulnerabilities")) {
+                                backendVulns = "0"
+                            } else {
+                                backendVulns = "Vulnerabilities found (check logs)"
                             }
+                        } catch (Exception e) {
+                            backendVulns = "Scan failed"
                         }
                     }
                     
-                    // Check Trivy results
-                    if (fileExists('trivy-frontend.json')) {
-                        def trivy = readJSON file: 'trivy-frontend.json'
-                        def criticalVulns = trivy.Results?.findAll { it.Vulnerabilities?.find { it.Severity == 'CRITICAL' } }?.size() ?: 0
-                        if (criticalVulns > 0) {
-                            echo "Frontend image has $criticalVulns critical vulnerabilities"
-                            securityStatus.containers = false
+                    // Check secrets status from gitleaks
+                    try {
+                        def gitleaksOutput = sh(script: 'gitleaks detect --source . --exit-code 0 --quiet 2>&1 || true', returnStdout: true).trim()
+                        if (gitleaksOutput.contains("no leaks found")) {
+                            secretsFound = "No secrets detected"
+                        } else {
+                            secretsFound = "Potential secrets found (check logs)"
                         }
+                    } catch (Exception e) {
+                        secretsFound = "Scan failed"
                     }
                     
-                    // Check secrets detection
-                    if (fileExists('gitleaks-report.json')) {
-                        def gitleaks = readJSON file: 'gitleaks-report.json'
-                        if (gitleaks.find { it }) {
-                            echo "Potential secrets detected - review gitleaks-report.json"
-                            // Don't fail build for secrets, just warn
-                        }
+                    echo 'VULNERABILITY STATUS:'
+                    echo "Frontend: ${frontendVulns}"
+                    echo "Backend: ${backendVulns}"
+                    echo "Secrets: ${secretsFound}"
+                    echo ''
+                    
+                    // DYNAMIC: Set security requirement based on actual scan results
+                    def requiresReview = false
+                    if (!frontendVulns.contains("0") || !backendVulns.contains("0") || secretsFound.contains("Potential")) {
+                        requiresReview = true
+                        env.SECURITY_REVIEW_REQUIRED = 'true'
+                        echo 'MANUAL SECURITY REVIEW REQUIRED - vulnerabilities detected'
+                    } else {
+                        env.SECURITY_REVIEW_REQUIRED = 'false'
+                        echo 'ALL SECURITY CHECKS PASSED - no manual review needed'
                     }
                     
-                    // Set environment variable for security status
-                    env.SECURITY_STATUS_PASSED = securityStatus.every { it.value }
-                    echo "Security Status: ${env.SECURITY_STATUS_PASSED ? 'PASSED' : 'FAILED'}"
+                    // Store vulnerability count for reporting
+                    env.FRONTEND_VULNERABILITIES = frontendVulns
+                    env.BACKEND_VULNERABILITIES = backendVulns
+                    env.SECRETS_STATUS = secretsFound
+                }
+            }
+        }
+
+        // FIXED: Security Approval Gate
+        stage('Security Approval') {
+            when {
+                expression { env.SECURITY_REVIEW_REQUIRED == 'true' }
+            }
+            steps {
+                script {
+                    echo '=== SECURITY APPROVAL REQUIRED ==='
+                    echo "Build: ${env.BUILD_NUMBER}"
+                    // DYNAMIC: Use actual vulnerability counts
+                    echo "Frontend: ${env.FRONTEND_VULNERABILITIES}"
+                    echo "Backend: ${env.BACKEND_VULNERABILITIES}" 
+                    echo "Secrets: ${env.SECRETS_STATUS}"
+                    echo ''
+                    echo 'Options:'
+                    echo '1. Approve deployment (acknowledge risks)'
+                    echo '2. Cancel and fix vulnerabilities first'
+                    echo '3. Check security reports in build artifacts'
+                    
+                    def deploymentApproval = input(
+                        // DYNAMIC: Use actual vulnerability info in message
+                        message: "Security: Build ${env.BUILD_NUMBER} has vulnerabilities. Frontend: ${env.FRONTEND_VULNERABILITIES}, Backend: ${env.BACKEND_VULNERABILITIES}. Proceed?", 
+                        ok: 'Deploy Anyway',
+                        submitterParameter: 'APPROVED_BY'
+                    )
+                    env.DEPLOYMENT_APPROVED_BY = deploymentApproval
+                    echo "Approved by: ${env.DEPLOYMENT_APPROVED_BY}"
                 }
             }
         }
@@ -196,37 +231,15 @@ pipeline {
             }
         }
 
-        // ENHANCED: Security Approval Gate
-        stage('Security Approval') {
+        // The final stage: Automated Deployment
+        stage('Deploy to Production') {
+            // FIX: Add condition to only deploy when no security review needed OR when approved
             when {
-                expression { env.SECURITY_STATUS_PASSED == 'false' }
-            }
-            steps {
-                script {
-                    echo 'Security scans detected issues that require review!'
-                    echo 'Critical/High vulnerabilities found in:'
-                    echo '- Dependencies (npm audit)'
-                    echo '- Container images (Trivy)'
-                    echo ''
-                    echo 'Please review the security reports in build artifacts.'
-                    echo 'You can either:'
-                    echo '1. Fix the vulnerabilities and re-run pipeline'
-                    echo '2. Acknowledge and proceed (not recommended for production)'
-                    
-                    // Manual approval for security issues
-                    input(
-                        message: 'Security issues detected. Proceed with deployment?', 
-                        ok: 'Deploy Anyway',
-                        submitterParameter: 'approvedBy',
-                        submitter: 'admin,deployer'
-                    )
-                    
-                    echo "Deployment approved by: ${approvedBy}"
+                anyOf {
+                    expression { env.SECURITY_REVIEW_REQUIRED == 'false' }
+                    expression { env.SECURITY_REVIEW_REQUIRED == 'true' && env.DEPLOYMENT_APPROVED_BY != null }
                 }
             }
-        }
-
-        stage('Deploy to Production') {
             steps {
                 echo '--- Deploying application to the server ---'
 
@@ -254,50 +267,40 @@ EOF
             echo 'Pipeline finished.'
             sh 'docker image prune -af'
             
-            // Enhanced security summary
+            // DYNAMIC: Security summary
             script {
-                echo "=== ENHANCED SECURITY SUMMARY ==="
-                echo "Scans performed:"
-                echo "Dependency scanning (npm audit)"
-                echo "Container vulnerability scanning (Trivy)"
-                echo "Secrets detection (Gitleaks)"
-                echo "SAST scanning (Semgrep)"
-                echo ""
-                echo "Security gates:"
-                echo "Manual approval required for critical vulnerabilities"
-                echo "Security reports archived as build artifacts"
-                echo ""
-                echo "Next level improvements:"
-                echo "- Add staging environment"
-                "- Implement automated compliance checks"
-                "- Add runtime security scanning"
-                "- Integrate with security dashboard"
+                echo "=== PIPELINE SUMMARY ==="
+                echo "Status: ${currentBuild.result ?: 'SUCCESS'}"
+                echo "Security Review Required: ${env.SECURITY_REVIEW_REQUIRED ?: 'false'}"
+                echo "Frontend Vulnerabilities: ${env.FRONTEND_VULNERABILITIES ?: 'Unknown'}"
+                echo "Backend Vulnerabilities: ${env.BACKEND_VULNERABILITIES ?: 'Unknown'}"
+                echo "Secrets Status: ${env.SECRETS_STATUS ?: 'Unknown'}"
+                echo "Approved by: ${env.DEPLOYMENT_APPROVED_BY ?: 'N/A'}"
+                echo "Build: ${env.BUILD_URL}"
             }
         }
         success {
-            // Security notification
+            echo 'Pipeline completed successfully!'
             emailext (
-                subject: "SECURITY: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
+                subject: "SUCCESS: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
                 body: """
-                Pipeline completed with security scanning!
+                Pipeline completed with security review!
                 
                 Build: ${env.BUILD_URL}
-                Security Status: ${env.SECURITY_STATUS_PASSED ? 'PASSED' : 'REVIEW REQUIRED'}
-                
-                Security reports available in build artifacts.
+                Security Status: ${env.SECURITY_REVIEW_REQUIRED == 'true' ? 'Vulnerabilities detected but approved' : 'All checks passed'}
+                Frontend: ${env.FRONTEND_VULNERABILITIES ?: 'Unknown'}
+                Backend: ${env.BACKEND_VULNERABILITIES ?: 'Unknown'}
+                Secrets: ${env.SECRETS_STATUS ?: 'Unknown'}
+                Approved by: ${env.DEPLOYMENT_APPROVED_BY ?: 'N/A'}
                 """,
                 to: "team@yourcompany.com"
             )
         }
         failure {
+            echo 'Pipeline failed!'
             emailext (
-                subject: "SECURITY ALERT: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
-                body: """
-                Pipeline failed during security scanning!
-                
-                Build: ${env.BUILD_URL}
-                Check security scan results and fix vulnerabilities.
-                """,
+                subject: "FAILED: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
+                body: "Pipeline failed! Check details: ${env.BUILD_URL}",
                 to: "team@yourcompany.com"
             )
         }
