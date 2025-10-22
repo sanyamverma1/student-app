@@ -18,8 +18,8 @@ function StudentForm() {
     studentId: "",
     education: "",
     major: "",
-    degreeStart: new Date("2021-01-01"),
-    degreeEnd: new Date("2025-12-01"),
+    degreeStart: new Date(),
+    degreeEnd: new Date(),
     gender: "",
   });
 
@@ -28,7 +28,7 @@ function StudentForm() {
   const [isEditable, setIsEditable] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // ✅ Step 1: Check student ID
+  // ✅ Step 1: Check if student exists
   const handleCheckStudent = async () => {
     console.log("DEBUG studentIdInput:", studentIdInput); 
     if (!studentIdInput.trim())
@@ -40,10 +40,15 @@ function StudentForm() {
       });
 
       if (res.data.exists) {
-        setForm(res.data.student);
+        const s = res.data.student;
+        setForm({
+          ...s,
+          degreeStart: s.degreeStart ? new Date(s.degreeStart) : new Date(),
+          degreeEnd: s.degreeEnd ? new Date(s.degreeEnd) : new Date(),
+        });
         setIsExistingStudent(true);
         setStep("form");
-        alert("Welcome back! View or edit your details below.");
+        alert("Welcome back! You can view or edit your details.");
       } else {
         setForm((prev) => ({ ...prev, studentId: studentIdInput }));
         setIsExistingStudent(false);
@@ -52,51 +57,72 @@ function StudentForm() {
         alert("New student detected. Please register below.");
       }
     } catch (err) {
-      console.error(err);
+      console.error("❌ Error checking student:", err);
       alert("Server error while checking student ID.");
     }
   };
 
   // ✅ Handle input changes
   const handleChange = (e) => {
-    if (!isEditable) return;
+    if (!isEditable && isExistingStudent) return;
     setForm({ ...form, [e.target.name]: e.target.value });
     setHasChanges(true);
   };
 
   const handleDateChange = (field, date) => {
-    if (!isEditable) return;
+    if (!isEditable && isExistingStudent) return;
     setForm({ ...form, [field]: date });
     setHasChanges(true);
   };
 
-  // ✅ Handle submit (register/update)
+  // ✅ Submit (register or update)
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = {
-        ...form,
-        degreeStart: form.degreeStart.toISOString().split("T")[0],
-        degreeEnd: form.degreeEnd.toISOString().split("T")[0],
-      };
+      const degreeStart =
+        form.degreeStart instanceof Date
+          ? form.degreeStart.toISOString().split("T")[0]
+          : form.degreeStart;
+
+      const degreeEnd =
+        form.degreeEnd instanceof Date
+          ? form.degreeEnd.toISOString().split("T")[0]
+          : form.degreeEnd;
+
+      const payload = { ...form, degreeStart, degreeEnd };
 
       const res = await axios.post("http://localhost:5000/api/submit", payload);
-      setResponse(res.data.message);
       alert(res.data.message);
+      setResponse(res.data.message);
 
-      // Go back to login/check page
-      setStep("check");
-      setIsExistingStudent(false);
-      setIsEditable(false);
-      setHasChanges(false);
-      setStudentIdInput("");
+      // ✅ Reset back to ID login after 2 seconds
+      setTimeout(() => {
+        setForm({
+          firstName: "",
+          lastName: "",
+          email: "",
+          password: "",
+          studentId: "",
+          education: "",
+          major: "",
+          degreeStart: new Date(),
+          degreeEnd: new Date(),
+          gender: "",
+        });
+        setStep("check");
+        setStudentIdInput("");
+        setIsEditable(false);
+        setIsExistingStudent(false);
+        setHasChanges(false);
+      }, 2000);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Error during submit:", err);
+      alert("❌ Failed to submit form");
       setResponse("❌ Failed to submit form");
     }
   };
 
-  // ✅ Handle Cancel
+  // ✅ Cancel and reset
   const handleCancel = () => {
     setStep("check");
     setIsEditable(false);
@@ -104,7 +130,6 @@ function StudentForm() {
     setStudentIdInput("");
     setHasChanges(false);
   };
-
   return (
     <div
       className="min-vh-100 d-flex align-items-center justify-content-center"
@@ -148,9 +173,9 @@ function StudentForm() {
                 <input
                   className="form-control"
                   name="firstName"
-                  value={form.firstName || ""}
+                  value={form.firstName}
                   onChange={handleChange}
-                  disabled={!isEditable}
+                  disabled={isExistingStudent && !isEditable}
                 />
               </div>
               <div className="col-md-6">
@@ -158,9 +183,9 @@ function StudentForm() {
                 <input
                   className="form-control"
                   name="lastName"
-                  value={form.lastName || ""}
+                  value={form.lastName}
                   onChange={handleChange}
-                  disabled={!isEditable}
+                  disabled={isExistingStudent && !isEditable}
                 />
               </div>
 
@@ -170,7 +195,7 @@ function StudentForm() {
                 <input
                   className="form-control"
                   name="studentId"
-                  value={form.studentId || ""}
+                  value={form.studentId}
                   disabled
                 />
               </div>
@@ -182,9 +207,9 @@ function StudentForm() {
                   type="email"
                   className="form-control"
                   name="email"
-                  value={form.email || ""}
+                  value={form.email}
                   onChange={handleChange}
-                  disabled={!isEditable}
+                  disabled={isExistingStudent && !isEditable}
                 />
               </div>
 
@@ -195,9 +220,9 @@ function StudentForm() {
                   type="password"
                   className="form-control"
                   name="password"
-                  value={form.password || ""}
+                  value={form.password}
                   onChange={handleChange}
-                  disabled={!isEditable}
+                  disabled={isExistingStudent && !isEditable}
                 />
               </div>
 
@@ -207,9 +232,9 @@ function StudentForm() {
                 <input
                   className="form-control"
                   name="education"
-                  value={form.education || ""}
+                  value={form.education}
                   onChange={handleChange}
-                  disabled={!isEditable}
+                  disabled={isExistingStudent && !isEditable}
                 />
               </div>
 
@@ -219,13 +244,13 @@ function StudentForm() {
                 <input
                   className="form-control"
                   name="major"
-                  value={form.major || ""}
+                  value={form.major}
                   onChange={handleChange}
-                  disabled={!isEditable}
+                  disabled={isExistingStudent && !isEditable}
                 />
               </div>
 
-              {/* Degree Start & End */}
+              {/* Degree Dates */}
               <div className="col-md-6">
                 <label className="form-label">Degree Start</label>
                 <DatePicker
@@ -234,7 +259,7 @@ function StudentForm() {
                   showMonthYearPicker
                   dateFormat="MMM yyyy"
                   className="form-control"
-                  disabled={!isEditable}
+                  disabled={isExistingStudent && !isEditable}
                 />
               </div>
 
@@ -246,7 +271,7 @@ function StudentForm() {
                   showMonthYearPicker
                   dateFormat="MMM yyyy"
                   className="form-control"
-                  disabled={!isEditable}
+                  disabled={isExistingStudent && !isEditable}
                 />
               </div>
 
@@ -261,7 +286,7 @@ function StudentForm() {
                       value="male"
                       checked={form.gender === "male"}
                       onChange={handleChange}
-                      disabled={!isEditable}
+                      disabled={isExistingStudent && !isEditable}
                       className="form-check-input"
                     />
                     <label className="form-check-label">Male</label>
@@ -273,7 +298,7 @@ function StudentForm() {
                       value="female"
                       checked={form.gender === "female"}
                       onChange={handleChange}
-                      disabled={!isEditable}
+                      disabled={isExistingStudent && !isEditable}
                       className="form-check-input"
                     />
                     <label className="form-check-label">Female</label>
