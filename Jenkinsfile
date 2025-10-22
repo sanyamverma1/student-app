@@ -237,27 +237,27 @@ pipeline {
                 echo '--- Deploying application to the server ---'
                 withCredentials([sshUserPrivateKey(credentialsId: 'autodeploynag3studentapp', keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR -i \${SSH_KEY} terif@localhost << 'EOF'
-                            echo 'Connected to the server via SSH.'
+                        ssh -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR -i \${SSH_KEY} terif@localhost '
+                            echo "Connected to the server via SSH."
                             cd ~/student-app || exit 1
-                            echo 'Navigated to project directory.'
+                            echo "Navigated to project directory."
                             
                             # FIX: Update git remote URL to correct repository
                             git remote set-url origin https://github.com/student-app-team/student-app.git
-                            echo 'Updated git remote URL'
+                            echo "Updated git remote URL"
                             
                             git pull origin main
-                            echo 'Pulled latest source code.'
+                            echo "Pulled latest source code."
                             docker compose -f docker-compose.prod.yml pull
-                            echo 'Pulled latest Docker images.'
+                            echo "Pulled latest Docker images."
                             docker compose -f docker-compose.prod.yml up -d
-                            echo 'Deployment complete!'
-        EOF
+                            echo "Deployment complete!"
+                        '
                     """
-                 }
-             }
-         }
-     }
+                }
+            }
+        }
+    }
 
      post {
         always {
