@@ -290,7 +290,7 @@ pipeline {
                 Secrets: ${env.SECRETS_STATUS ?: 'Unknown'}
                 Approved by: ${env.DEPLOYMENT_APPROVED_BY ?: 'N/A'}
                 """,
-                to: "team@yourcompany.com"
+                to: "104860583@student.swin.edu.au"
             )
         }
         failure {
@@ -298,7 +298,7 @@ pipeline {
             emailext (
                 subject: "FAILED: Pipeline ${env.JOB_NAME} - Build ${env.BUILD_NUMBER}",
                 body: "Pipeline failed! Check details: ${env.BUILD_URL}",
-                to: "team@yourcompany.com"
+                to: "104860583@student.swin.edu.au"
             )
         }
     }
