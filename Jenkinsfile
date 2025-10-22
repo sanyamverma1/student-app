@@ -8,6 +8,7 @@ pipeline {
 
     environment {
         DOCKERHUB_USERNAME = 'francodeploy'
+        PROD_API_URL = 'http://34.129.245.120:5000'
     }
 
     stages {
@@ -61,13 +62,15 @@ pipeline {
                         script {
                             // Build images first for Trivy scanning
                             dir('frontend') {
-                                sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
+                                // --- THIS IS THE CORRECTED COMMAND ---
+                                // We now pass the build argument using the environment variable.
+                                sh "docker build --build-arg REACT_APP_API_URL=${env.PROD_API_URL} -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
                             }
                             dir('backend') {
                                 sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
                             }
                             
-                            // Scan with Trivy
+                            // Scan with Trivy (this part is correct)
                             sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} || echo 'Frontend container scan completed'"
                             sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} || echo 'Backend container scan completed'"
                         }
