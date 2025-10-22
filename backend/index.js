@@ -51,40 +51,7 @@ app.post("/api/admin/login", async (req, res) => {
     res.status(500).json({ message: "Server error during admin login" });
   }
 });
-// Login route
-app.post("/api/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ message: "Missing email or password" });
-    }
-
-    const studentId = email.split("@")[0];
-    console.log(`Login attempt: ${email} => studentId: ${studentId}`);
-
-    const student = await Student.findOne({ studentId });
-
-    if (!student) {
-      console.log(`No student found with ID: ${studentId}`);
-      return res.status(404).json({ message: "Student not found" });
-    }
-
-    if (student.password !== password) {
-      console.log(`Incorrect password for: ${email}`);
-      return res.status(401).json({ message: "Invalid password" });
-    }
-
-    console.log(`Login successful for: ${email}`);
-    return res.status(200).json({
-      message: "Login successful!",
-      student,
-    });
-  } catch (err) {
-    console.error("Error logging in:", err);
-    res.status(500).json({ message: "Server error during login" });
-  }
-});
+// REMOVED DUPLICATE LOGIN ROUTE - Using the main one below
 
 /* ----------------------------------------------------------
    🧠 LOGIN OR REGISTER NEW STUDENT (email + password)
@@ -257,5 +224,5 @@ app.delete("/api/admin/students/:id", async (req, res) => {
 -------------------------------------------------------------*/
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
-  console.log(`🚀 Server running on ${process.env.MONGODB_URI}`)
+  console.log(`🚀 Server running on port ${PORT}`)
 );
