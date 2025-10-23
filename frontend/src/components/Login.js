@@ -16,7 +16,7 @@ function Login() {
     setError("");
 
     if (role === "student") {
-      if (!email.endsWith("@student.edu")) {
+      if (!email.endsWith("@student.edu.au")) {
         setError("Please use your student email address");
         return;
       }
