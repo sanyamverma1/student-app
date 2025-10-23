@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from "../api";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -14,7 +14,7 @@ function AdminDashboard() {
   // Fetch students
   const fetchStudents = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/admin/students");
+      const res = await apiClient.get("/api/admin/students");
       setStudents(res.data);
       setLoading(false);
     } catch (err) {
@@ -45,7 +45,7 @@ function AdminDashboard() {
 
   const handleSave = async (id) => {
     try {
-      await axios.put(`http://localhost:5000/api/admin/students/${id}`, editedStudent);
+      await apiClient.put(`/api/admin/students/${id}`, editedStudent);
       alert("✅ Student updated successfully!");
       setEditingId(null);
       fetchStudents();
@@ -58,7 +58,7 @@ function AdminDashboard() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this student?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/admin/students/${id}`);
+      await apiClient.delete(`/api/admin/students/${id}`);
       alert("🗑️ Student deleted successfully!");
       fetchStudents();
     } catch (err) {
