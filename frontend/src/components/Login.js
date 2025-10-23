@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
 import apiClient from "../api";
 
-
 function Login() {
   const [role, setRole] = useState("student");
   const [email, setEmail] = useState("");
@@ -15,34 +14,13 @@ function Login() {
     e.preventDefault();
     setError("");
 
-    if (role === "student") {
-      if (!email.endsWith("@student.edu.au")) {
-        setError("Please use your student email address");
-        return;
-      }
-
-      try {
-        const res = await apiClient.post("/api/login", {
-          email,
-          password,
-        });
-
-        if (res.status === 200) {
-          alert("Student login successful!");
-          const studentId = res.data.student.studentId;
-          navigate("/student-form", { state: { studentId } });
-        }
-      } catch (err) {
-        console.error("Login error:", err);
-        setError(
-          err.response?.data?.message || "Login failed. Please try again."
-        );
-      }
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and password.");
       return;
     }
 
     try {
-      // 🧩 Admin login
+      // Handle Admin Login
       if (role === "admin") {
         const res = await apiClient.post("/api/admin/login", {
           email,
@@ -50,37 +28,46 @@ function Login() {
         });
         alert(res.data.message);
         navigate("/admin-dashboard");
-        return;
+        return; // End the function here for admins
       }
 
-      // 🧩 Student login
-      if (!email.toLowerCase().endsWith("@student.edu.au")) {
-        setError("Please use your Swinburne student email (e.g., studentId@student.edu.au).");
-        return;
-      }
+      // Handle Student Login
+      if (role === "student") {
+        // This is the correct, specific check for the student email domain
+        if (!email.toLowerCase().endsWith("@student.edu.au")) {
+          setError(
+            "Please use your Swinburne student email (e.g., studentId@student.edu.au)."
+          );
+          return;
+        }
 
-      const res = await apiClient.post("/api/login", {
-        email,
-        password,
-      });
-
-      const data = res.data;
-
-      if (data.existing) {
-        alert("Welcome back!");
-        navigate("/student-form", {
-          state: { email, existing: true, student: data.student },
+        const res = await apiClient.post("/api/login", {
+          email,
+          password,
         });
-      } else {
-        alert("New student detected — please complete your registration.");
-        navigate("/student-form", { state: { email, existing: false } });
+
+        const data = res.data;
+
+        if (data.existing) {
+          alert("Welcome back!");
+          // This is the correct navigate call, sending all the necessary data
+          navigate("/student-form", {
+            state: { email, existing: true, student: data.student },
+          });
+        } else {
+          alert("New student detected — please complete your registration.");
+          // This is also correct, sending the email and existing status
+          navigate("/student-form", { state: { email, existing: false } });
+        }
       }
     } catch (err) {
       console.error("❌ Login error:", err);
       if (err.response?.status === 401) {
         setError("Invalid password.");
       } else if (err.response?.status === 400) {
-        setError("Invalid email or missing credentials.");
+        setError(
+          err.response?.data?.message || "Invalid email or missing credentials."
+        );
       } else {
         setError("Server error. Please try again later.");
       }
