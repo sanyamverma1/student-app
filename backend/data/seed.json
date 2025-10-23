@@ -2,7 +2,7 @@
   {
     "firstName": "Ai Vi",
     "lastName": "Tran",
-    "email": "104209393@student.edu",
+    "email": "104209393@student.edu.au",
     "password": "123456",
     "studentId": "104209393",
     "education": "Bachelor",
@@ -14,7 +14,7 @@
   {
     "firstName": "John",
     "lastName": "Doe",
-    "email": "108109396@student.edu",
+    "email": "108109396@student.edu.au",
     "password": "123456",
     "studentId": "108109396",
     "education": "Bachelor",
@@ -26,7 +26,7 @@
   {
     "firstName": "Sanyam",
     "lastName": "Verma",
-    "email": "103165193@student.edu",
+    "email": "103165193@student.edu.au",
     "password": "123456",
     "studentId": "103165193",
     "education": "Bachelor",
@@ -38,7 +38,7 @@
   {
     "firstName": "Emily",
     "lastName": "Clark",
-    "email": "104567890@student.edu",
+    "email": "104567890@student.edu.au",
     "password": "123456",
     "studentId": "104567890",
     "education": "Bachelor",
@@ -50,7 +50,7 @@
   {
     "firstName": "Michael",
     "lastName": "Nguyen",
-    "email": "104872351@student.edu",
+    "email": "104872351@student.edu.au",
     "password": "123456",
     "studentId": "104872351",
     "education": "Bachelor",
@@ -62,7 +62,7 @@
   {
     "firstName": "Olivia",
     "lastName": "Harris",
-    "email": "105982374@student.edu",
+    "email": "105982374@student.edu.au",
     "password": "123456",
     "studentId": "105982374",
     "education": "Bachelor",
@@ -74,7 +74,7 @@
   {
     "firstName": "Ethan",
     "lastName": "Lee",
-    "email": "105647382@student.edu",
+    "email": "105647382@student.edu.au",
     "password": "123456",
     "studentId": "105647382",
     "education": "Bachelor",
@@ -86,7 +86,7 @@
   {
     "firstName": "Sophia",
     "lastName": "Kaur",
-    "email": "105239874@student.edu",
+    "email": "105239874@student.edu.au",
     "password": "123456",
     "studentId": "105239874",
     "education": "Bachelor",
@@ -98,7 +98,7 @@
   {
     "firstName": "Liam",
     "lastName": "Brown",
-    "email": "105438912@student.edu",
+    "email": "105438912@student.edu.au",
     "password": "123456",
     "studentId": "105438912",
     "education": "Bachelor",
@@ -110,7 +110,7 @@
   {
     "firstName": "Charlotte",
     "lastName": "Wilson",
-    "email": "106982371@student.edu",
+    "email": "106982371@student.edu.au",
     "password": "123456",
     "studentId": "106982371",
     "education": "Bachelor",
@@ -122,7 +122,7 @@
   {
     "firstName": "Jacob",
     "lastName": "Patel",
-    "email": "106982372@student.edu",
+    "email": "106982372@student.edu.au",
     "password": "123456",
     "studentId": "106982372",
     "education": "Bachelor",
@@ -134,7 +134,7 @@
   {
     "firstName": "Grace",
     "lastName": "Johnson",
-    "email": "106982373@student.edu",
+    "email": "106982373@student.edu.au",
     "password": "123456",
     "studentId": "106982373",
     "education": "Bachelor",
@@ -146,7 +146,7 @@
   {
     "firstName": "Noah",
     "lastName": "Zhang",
-    "email": "107892134@student.edu",
+    "email": "107892134@student.edu.au",
     "password": "123456",
     "studentId": "107892134",
     "education": "Bachelor",
@@ -158,7 +158,7 @@
   {
     "firstName": "Isabella",
     "lastName": "Kim",
-    "email": "107892135@student.edu",
+    "email": "107892135@student.edu.au",
     "password": "123456",
     "studentId": "107892135",
     "education": "Bachelor",
@@ -170,7 +170,7 @@
   {
     "firstName": "Lucas",
     "lastName": "Singh",
-    "email": "107892136@student.edu",
+    "email": "107892136@student.edu.au",
     "password": "123456",
     "studentId": "107892136",
     "education": "Bachelor",
@@ -182,7 +182,7 @@
   {
     "firstName": "Mia",
     "lastName": "Taylor",
-    "email": "108563491@student.edu",
+    "email": "108563491@student.edu.au",
     "password": "123456",
     "studentId": "108563491",
     "education": "Bachelor",
@@ -194,7 +194,7 @@
   {
     "firstName": "William",
     "lastName": "Ng",
-    "email": "108563492@student.edu",
+    "email": "108563492@student.edu.au",
     "password": "123456",
     "studentId": "108563492",
     "education": "Bachelor",
@@ -206,7 +206,7 @@
   {
     "firstName": "Ava",
     "lastName": "White",
-    "email": "108563493@student.edu",
+    "email": "108563493@student.edu.au",
     "password": "123456",
     "studentId": "108563493",
     "education": "Bachelor",
@@ -218,7 +218,7 @@
   {
     "firstName": "James",
     "lastName": "Ahmed",
-    "email": "108563494@student.edu",
+    "email": "108563494@student.edu.au",
     "password": "123456",
     "studentId": "108563494",
     "education": "Bachelor",
@@ -230,7 +230,7 @@
   {
     "firstName": "Zoe",
     "lastName": "Martinez",
-    "email": "108563495@student.edu",
+    "email": "108563495@student.edu.au",
     "password": "123456",
     "studentId": "108563495",
     "education": "Bachelor",
