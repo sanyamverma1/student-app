@@ -54,8 +54,8 @@ function Login() {
       }
 
       // 🧩 Student login
-      if (!email.toLowerCase().endsWith("@student.swin.edu.au")) {
-        setError("Please use your Swinburne student email (e.g., studentId@student.swin.edu.au).");
+      if (!email.toLowerCase().endsWith("@student.edu.au")) {
+        setError("Please use your Swinburne student email (e.g., studentId@student.edu.au).");
         return;
       }
 
@@ -113,7 +113,7 @@ function Login() {
             id="email"
             placeholder={
               role === "student"
-                ? "e.g., 103165193@student.swin.edu.au"
+                ? "e.g., 103165193@student.edu.au"
                 : "e.g., admin@swin.edu.au"
             }
             value={email}
