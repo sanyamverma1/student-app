@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import apiClient from "../api";
+
 
 function StudentForm() {
   const location = useLocation();
@@ -12,31 +13,37 @@ function StudentForm() {
   //  Values passed from Login.js
   const { email, existing, student } = location.state || {};
 
-  //  Initialize form data
-  const [form, setForm] = useState(
-    student
-      ? {
-          ...student,
-          degreeStart: student.degreeStart
-            ? new Date(student.degreeStart)
-            : new Date(),
-          degreeEnd: student.degreeEnd
-            ? new Date(student.degreeEnd)
-            : new Date(),
-        }
-      : {
-          firstName: "",
-          lastName: "",
-          email: email || "",
-          password: "",
-          studentId: "",
-          education: "",
-          major: "",
-          degreeStart: new Date(),
-          degreeEnd: new Date(),
-          gender: "",
-        }
-  );
+  //  Initialize form data (REVISED AND MORE ROBUST)
+  const [form, setForm] = useState({
+      // 1. Start with a default, blank state for all fields.
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      studentId: "",
+      education: "",
+      major: "",
+      degreeStart: new Date(),
+      degreeEnd: new Date(),
+      gender: "",
+
+      // 2. If a full 'student' object was passed, spread its values.
+      // This will overwrite the blank fields with the student's actual data.
+      ...(student || {}),
+
+      // 3. ALWAYS explicitly set the email from the location state.
+      // This guarantees the email is correct, even if the student object is malformed
+      // or if it's a new student. This is the key fix.
+      email: email || "",
+
+      // 4. Handle the dates last, after the student object has been applied.
+      degreeStart: student?.degreeStart
+          ? new Date(student.degreeStart)
+          : new Date(),
+      degreeEnd: student?.degreeEnd
+          ? new Date(student.degreeEnd)
+          : new Date(),
+  });
 
   const [response, setResponse] = useState("");
   const [isExistingStudent, setIsExistingStudent] = useState(existing || false);
@@ -74,7 +81,7 @@ function StudentForm() {
 
       const payload = { ...form, degreeStart, degreeEnd };
 
-      const res = await axios.post("http://localhost:5000/api/submit", payload);
+      const res = await apiClient.post("/api/submit", payload);
       alert(res.data.message);
       setResponse(res.data.message);
 
