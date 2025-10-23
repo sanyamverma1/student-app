@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/login.css";
 import apiClient from "../api";
+import "../styles/login.css";
 
 function Login() {
   const [role, setRole] = useState("student");
@@ -20,7 +20,7 @@ function Login() {
     }
 
     try {
-      // Handle Admin Login
+      // 🧩 Admin login
       if (role === "admin") {
         const res = await apiClient.post("/api/admin/login", {
           email,
@@ -28,7 +28,7 @@ function Login() {
         });
         alert(res.data.message);
         navigate("/admin-dashboard");
-        return; // End the function here for admins
+        return;
       }
 
       // 🧩 Student login
@@ -37,33 +37,28 @@ function Login() {
         return;
       }
 
-        const res = await apiClient.post("/api/login", {
-          email,
-          password,
+      const res = await apiClient.post("/api/login", {
+        email,
+        password,
+      });
+
+      const data = res.data;
+
+      if (data.existing) {
+        alert("Welcome back!");
+        navigate("/student-form", {
+          state: { email, existing: true, student: data.student },
         });
-
-        const data = res.data;
-
-        if (data.existing) {
-          alert("Welcome back!");
-          // This is the correct navigate call, sending all the necessary data
-          navigate("/student-form", {
-            state: { email, existing: true, student: data.student },
-          });
-        } else {
-          alert("New student detected — please complete your registration.");
-          // This is also correct, sending the email and existing status
-          navigate("/student-form", { state: { email, existing: false } });
-        }
+      } else {
+        alert("New student detected — please complete your registration.");
+        navigate("/student-form", { state: { email, existing: false } });
       }
     } catch (err) {
       console.error("❌ Login error:", err);
       if (err.response?.status === 401) {
         setError("Invalid password.");
       } else if (err.response?.status === 400) {
-        setError(
-          err.response?.data?.message || "Invalid email or missing credentials."
-        );
+        setError("Invalid email or missing credentials.");
       } else {
         setError("Server error. Please try again later.");
       }
@@ -73,6 +68,7 @@ function Login() {
   return (
     <div className="login-container">
       <h2>Login</h2>
+
       <form onSubmit={handleSubmit}>
         {/* Role selector */}
         <div className="mb-3">
