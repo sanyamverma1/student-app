@@ -56,7 +56,7 @@ app.post("/api/login", async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ message: "Email and password required" });
 
-    if (!email.toLowerCase().endsWith("@student.swin.edu.au")) {
+    if (!email.toLowerCase().endsWith("@student.edu.au")) {
       return res
         .status(400)
         .json({ message: "Only Swinburne student emails are allowed." });
