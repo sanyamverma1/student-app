@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from "../api";
+import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 function AdminDashboard() {
@@ -8,11 +9,12 @@ function AdminDashboard() {
   const [editedStudent, setEditedStudent] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
-  // Fetch students from backend
+  // Fetch students
   const fetchStudents = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/admin/students");
+      const res = await apiClient.get("/api/admin/students");
       setStudents(res.data);
       setLoading(false);
     } catch (err) {
@@ -26,41 +28,37 @@ function AdminDashboard() {
     fetchStudents();
   }, []);
 
-  // Enable editing mode
+  // Edit mode
   const handleEdit = (student) => {
     setEditingId(student._id);
     setEditedStudent({ ...student });
   };
 
-  // Cancel editing
   const handleCancel = () => {
     setEditingId(null);
     setEditedStudent({});
   };
 
-  // Handle input change in editable row
   const handleChange = (e, field) => {
     setEditedStudent({ ...editedStudent, [field]: e.target.value });
   };
 
-  // Save updates
   const handleSave = async (id) => {
     try {
-      await axios.put(`http://localhost:5000/api/admin/students/${id}`, editedStudent);
+      await apiClient.put(`/api/admin/students/${id}`, editedStudent);
       alert("✅ Student updated successfully!");
       setEditingId(null);
-      fetchStudents(); // refresh table
+      fetchStudents();
     } catch (err) {
       console.error("❌ Error updating student:", err);
       alert("Failed to update student.");
     }
   };
 
-  // Delete record
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this student?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/admin/students/${id}`);
+      await apiClient.delete(`/api/admin/students/${id}`);
       alert("🗑️ Student deleted successfully!");
       fetchStudents();
     } catch (err) {
@@ -69,11 +67,21 @@ function AdminDashboard() {
     }
   };
 
+  // ✅ Logout handler
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to log out?")) {
+      navigate("/"); // Go back to login page
+    }
+  };
+
   return (
     <div className="container mt-5 mb-5">
-      <h2 className="text-center text-primary mb-4 fw-bold">
-        🎓 Admin Dashboard
-      </h2>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="text-primary fw-bold">🎓 Admin Dashboard</h2>
+        <button className="btn btn-danger px-4" onClick={handleLogout}>
+          Logout
+        </button>
+      </div>
 
       {loading ? (
         <p className="text-center text-muted">Loading students...</p>
