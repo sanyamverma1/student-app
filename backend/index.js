@@ -59,7 +59,7 @@ app.post("/api/login", async (req, res) => {
     if (!email.toLowerCase().endsWith("@student.edu.au")) {
       return res
         .status(400)
-        .json({ message: "Only Swinburne student emails are allowed." });
+        .json({ message: "Only student emails are allowed." });
     }
 
     let student = await Student.findOne({ email });
