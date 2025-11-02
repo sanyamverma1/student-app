@@ -1,9 +1,3 @@
-# docker-compose.prod.yml
-# This file is for deploying to the production server.
-
-# This line is obsolete and can be safely removed to avoid the warning.
-# version: '3.8'
-
 services:
   # The Frontend Service (pulls from Docker Hub)
   frontend:
@@ -12,7 +6,6 @@ services:
     ports:
       - "80:80"
     restart: always
-    # --- ADDED THIS BLOCK ---
     # Add the frontend to the same network so all services are linked.
     networks:
       - studentapp-net
@@ -24,8 +17,6 @@ services:
     ports:
       - "5000:5000"
     restart: always
-    # --- CHANGED THIS SECTION ---
-    # Use the more reliable "map" format for environment variables.
     environment:
       MONGODB_URI: "mongodb://mongo:27017/studentapp"
     depends_on:
