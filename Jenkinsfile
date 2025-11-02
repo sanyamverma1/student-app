@@ -41,7 +41,7 @@ pipeline {
             }
         }
 
-        // ENHANCED: Comprehensive Security Scans (FIXED)
+        // Security Scans
         stage('Security Scans') {
             parallel {
                 stage('Dependency Scan') {
@@ -62,7 +62,6 @@ pipeline {
                         script {
                             // Build images first for Trivy scanning
                             dir('frontend') {
-                                // --- THIS IS THE CORRECTED COMMAND ---
                                 // We now pass the build argument using the environment variable.
                                 sh "docker build --build-arg REACT_APP_API_URL=${env.PROD_API_URL} -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} ."
                             }
@@ -70,7 +69,7 @@ pipeline {
                                 sh "docker build -f Dockerfile.prod -t ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} ."
                             }
                             
-                            // Scan with Trivy (this part is correct)
+                            // Scan with Trivy
                             sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${DOCKERHUB_USERNAME}/student-app-frontend:${BUILD_NUMBER} || echo 'Frontend container scan completed'"
                             sh "trivy image --exit-code 0 --severity HIGH,CRITICAL ${DOCKERHUB_USERNAME}/student-app-backend:${BUILD_NUMBER} || echo 'Backend container scan completed'"
                         }
@@ -171,7 +170,7 @@ pipeline {
             }
         }
 
-         // FIXED: Security Approval Gate using standard Jenkins steps
+         // Security Approval Gate using standard Jenkins steps
          stage('Security Approval') {
              when {
                  expression { env.SECURITY_REVIEW_REQUIRED == 'true' }

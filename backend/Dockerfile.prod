@@ -22,7 +22,6 @@ RUN npm ci --omit=dev
 
 COPY . .
 
-# You can add the EXPOSE line here - it's good practice for documentation.
 EXPOSE 5000
 
 # The command to start the server
